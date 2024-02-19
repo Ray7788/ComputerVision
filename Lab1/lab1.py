@@ -69,7 +69,6 @@ def mean_distribution(row, col, ktype=np.float32):
     Used for mean filtering."""
     return np.ones((row, col), dtype=ktype) / (row * col)
 
-
 def gaussian_distribution(row, col, amp, sx, sy,
                             cx=0, cy=0,
                             ktype=np.float32,
@@ -93,9 +92,9 @@ def gaussian_distribution(row, col, amp, sx, sy,
         for j in range(0, col):
             x = i - ax
             y = j - ay
-            gx = (((x-cx)**2) / 2 * sx**2)
-            gy = (((y-cy)**2) / 2 * sy**2)
-            value = amp * np.exp(-(gx + gy))
+            gx = ((x-cx)**2) / (2 * sx**2)
+            gy = ((y-cy)**2) / (2 * sy**2)
+            value = amp * np.exp(-(gx + gy)) / (2 * np.pi * sx * sy)
             kernel[i, j] = value
             total = total + value
 
@@ -233,8 +232,9 @@ if __name__ == "__main__":
     WINDOW_NAME = 'COMP37212 Lab1'
 
     # Start processing ----------------------------------------------------------
+    # Average Filterings V.S. Weighted Average (Gaussian) Filtering
     # 2. Perform experiment for a mean filter kernel    ***********************
-    img_mean_blur = mean_filter(img, 3, 3, ktype=np.float64)
+    img_mean_blur = mean_filter(img, GK_SIZE, GK_SIZE, ktype=np.float64)
     img_mean_sobelX = convolution(img_mean_blur, sobelX_kernel)
     img_mean_sobelY = convolution(img_mean_blur, sobelY_kernel)
     img_mean_gradient = cv.addWeighted(img_mean_sobelX, 0.5,
@@ -260,8 +260,7 @@ if __name__ == "__main__":
     img_gaussian_hist = img_gaussian_hist.reshape(256)
 
     # 4.3 Threshold to find edges
-    img_gaussian_edges = thresholding_binary(
-        img_gaussian_gradient, THRESH_VALUE)
+    img_gaussian_edges = thresholding_binary(img_gaussian_gradient, THRESH_VALUE)
 
     # Compare edge strength images
     img_edge_comparison = img_mean_edges - img_gaussian_edges
@@ -283,13 +282,12 @@ if __name__ == "__main__":
     cv.namedWindow(WINDOW_NAME, cv.WINDOW_AUTOSIZE)
     cv.imshow(WINDOW_NAME, window)
 
-    # Display histograms
+    # Display histograms for image thresholding
     mean_plot = plt.figure('Mean kernel image histogram')
     plt.bar(np.linspace(0, 255, 256), img_mean_hist)
     plt.title('Histogram')
     plt.title('Gray level')
     plt.ylabel('Frequency')
-
     gaussian_plot = plt.figure('Weighted-mean kernel image histogram')
     plt.bar(np.linspace(0, 255, 256), img_gaussian_hist)
     plt.title('Histogram')
