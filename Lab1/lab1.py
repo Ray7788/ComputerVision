@@ -23,8 +23,7 @@ def custom_normalize(image, alpha=0, beta=1, norm_type='minmax', dtype=np.float6
 
     Returns:
         numpy.ndarray
-            The normalized image.
-    """
+            The normalized image."""
     if norm_type == 'minmax':
         min_val = np.min(image)
         max_val = np.max(image)
@@ -142,7 +141,7 @@ def convolve2D(m, k):
 
     # Remember the original type
     orig_type, alpha, beta = np_to_cv_type(m.dtype)
-    
+
     px, py = kx // 2, ky // 2   # Compute what padding is required
 
     # Pad matrix to deal with edges and corners and convert it to float64
@@ -171,7 +170,7 @@ def convolve2D(m, k):
 
     # Return part of the padded matrix that forms the output
     result = cv.normalize(np.absolute(result64), None, alpha=alpha, beta=beta,
-                            norm_type=cv.NORM_MINMAX, dtype=orig_type)
+                          norm_type=cv.NORM_MINMAX, dtype=orig_type)
     # result = custom_normalize(np.absolute(
     #     result64), alpha=alpha, beta=beta, norm_type='minmax', dtype=orig_type)
     return result
@@ -207,7 +206,7 @@ def gaussian_filter2D(img, krow, kcol, amp, sx, sy, cx=0, cy=0,
                                      ktype=ktype, normalize=normalize)
     return convolve2D(img, kernel)
 
-# TODO: 检查sobel方向是否正确
+
 # Program entry point
 if __name__ == "__main__":
     print("OpenCV version " + cv.__version__)
@@ -216,6 +215,7 @@ if __name__ == "__main__":
     assert img is not None, "error: imread: failed to open " + filepath
 
     # Define the Sobel kernels https://homepages.inf.ed.ac.uk/rbf/HIPR2/sobel.htm
+    # https://en.wikipedia.org/wiki/Sobel_operator
     sobelX_kernel = np.array([[-1, 0, 1],
                               [-2, 0, 2],
                               [-1, 0, 1]], dtype=np.float64)
@@ -225,7 +225,7 @@ if __name__ == "__main__":
                               [1, 2, 1]], dtype=np.float64)
 
     # Define experiment parameters
-    GK_SIZE = 7  # Gaussian kernel size
+    GK_SIZE = 3  # Gaussian kernel size
     GK_AMP = 5  # Gaussian kernel amplitude
     GK_SX = 0.25  # Gaussian kernel spread on X axis
     GK_SY = 0.25  # Gaussian kernel spread on Y axis
@@ -234,7 +234,7 @@ if __name__ == "__main__":
 
     # Start processing ----------------------------------------------------------
     # 2. Perform experiment for a mean filter kernel    ***********************
-    img_mean_blur = mean_filter2D(img, 7, 7, ktype=np.float64)
+    img_mean_blur = mean_filter2D(img, 3, 3, ktype=np.float64)
     img_mean_sobelX = convolve2D(img_mean_blur, sobelX_kernel)
     img_mean_sobelY = convolve2D(img_mean_blur, sobelY_kernel)
     img_mean_gradient = cv.addWeighted(img_mean_sobelX, 0.5,
@@ -265,7 +265,6 @@ if __name__ == "__main__":
 
     # Compare edge strength images
     img_edge_comparison = img_mean_edges - img_gaussian_edges
-
 
     # Show all images in a single window for easy control with a slider
     horizontal = np.concatenate((img_mean_blur, img_mean_sobelX), axis=1)
