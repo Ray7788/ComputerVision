@@ -124,17 +124,6 @@ def thresholding_binary(img, threshold):
     Args:
         img: input image
         threshold: threshold"""
-    nx, ny = img.shape
-    result = np.zeros(img.shape, dtype=img.dtype)
-    for i in range(nx):
-        for j in range(ny):
-            if img[i, j] < threshold:
-                result[i, j] = 0
-            else:
-                result[i, j] = 255 if img.dtype == np.uint8 else 1
-    return result
-
-def theresholding(img, threshold):
     new_img = np.zeros(img.shape, np.uint8)
     height, width = img.shape[:2]
     for i in range(height):
@@ -144,6 +133,7 @@ def theresholding(img, threshold):
             else:
                 new_img[i,j] = 0
     return new_img
+
 
 def convolution(m, k):
     """Performs 2D convolution on an image.
@@ -235,7 +225,7 @@ if __name__ == "__main__":
                               [1, 2, 1]], dtype=np.float64)
 
     # Define experiment parameters
-    GK_SIZE = 3  # Gaussian kernel size
+    GK_SIZE = 7  # Gaussian kernel size
     GK_AMP = 5  # Gaussian kernel amplitude
     GK_SX = 0.25  # Gaussian kernel spread on X axis
     GK_SY = 0.25  # Gaussian kernel spread on Y axis
@@ -277,11 +267,13 @@ if __name__ == "__main__":
     img_edge_comparison = img_mean_edges - img_gaussian_edges
 
     # Show all images in a single window for easy control with a slider
+    # 1st row --------------------- #
     horizontal = np.concatenate((img_mean_blur, img_mean_sobelX), axis=1)
     horizontal = np.concatenate((horizontal, img_mean_sobelY), axis=1)
     horizontal = np.concatenate((horizontal, img_mean_gradient), axis=1)
     horizontal = np.concatenate((horizontal, img_mean_edges), axis=1)
     horizontal = np.concatenate((horizontal, img), axis=1)
+    # 2nd row --------------------- #
     vertical = np.concatenate((img_gaussian_blur, img_gaussian_sobelX), axis=1)
     vertical = np.concatenate((vertical, img_gaussian_sobelY), axis=1)
     vertical = np.concatenate((vertical, img_gaussian_gradient), axis=1)
