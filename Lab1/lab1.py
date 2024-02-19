@@ -64,12 +64,13 @@ def np_to_cv_type(x):
     }.get(x, (cv.CV_8U, 0, 255))
 
 
-def mean_distribution2D(row, col, ktype=np.float32):
-    """Generates an average distribution mxn matrix."""
+def mean_distribution(row, col, ktype=np.float32):
+    """Generates an average distribution mxn matrix, where all elements are 1/(row*col).
+    Used for mean filtering."""
     return np.ones((row, col), dtype=ktype) / (row * col)
 
 
-def gaussian_distribution2D(row, col, amp, sx, sy,
+def gaussian_distribution(row, col, amp, sx, sy,
                             cx=0, cy=0,
                             ktype=np.float32,
                             normalize=True):
@@ -78,15 +79,14 @@ def gaussian_distribution2D(row, col, amp, sx, sy,
         row: number of rows
         col: number of columns
         amp: amplitude
-        sx: spread on X/Y axis
-        cx: center on X/Y axis
+        sx/sy: spread on X/Y axis
+        cx/cy: center on X/Y axis
         ktype: type of the matrix
         normalize: normalize"""
     kernel = np.empty((row, col), dtype=np.float64)
 
     # Compute anchor point
     ax, ay = row // 2, col // 2
-
     # Fill matrix with results from the 2D Gaussian function
     total = 0.0
     for i in range(0, row):
@@ -99,14 +99,13 @@ def gaussian_distribution2D(row, col, amp, sx, sy,
             kernel[i, j] = value
             total = total + value
 
-    # Normalize numbers by default so they add up to 1
-    if normalize:
+    if normalize:    # Normalize numbers by default so they add up to 1
         kernel = kernel / total
 
     return kernel.astype(ktype)
 
 
-def pad_matrix2D(m, v=0, width=1, height=1):
+def padding_matrix(m, v=0, width=1, height=1):
     """Pads a matrix with a given value for image convolution.
     Args:
         m: matrix
@@ -120,32 +119,46 @@ def pad_matrix2D(m, v=0, width=1, height=1):
     return result
 
 
-def threshold2D_binary(img, threshold):
+def thresholding_binary(img, threshold):
     """Performs binary thresholding on an image.
     Args:
         img: input image
         threshold: threshold"""
-    result = np.where(img < threshold, 0, 255 if img.dtype == np.uint8 else 1)
-    return result.astype(img.dtype)
+    nx, ny = img.shape
+    result = np.zeros(img.shape, dtype=img.dtype)
+    for i in range(nx):
+        for j in range(ny):
+            if img[i, j] < threshold:
+                result[i, j] = 0
+            else:
+                result[i, j] = 255 if img.dtype == np.uint8 else 1
+    return result
 
+def theresholding(img, threshold):
+    new_img = np.zeros(img.shape, np.uint8)
+    height, width = img.shape[:2]
+    for i in range(height):
+        for j in range(width):
+            if img[i,j] > threshold:
+                new_img[i,j] = 255
+            else:
+                new_img[i,j] = 0
+    return new_img
 
-def convolve2D(m, k):
+def convolution(m, k):
     """Performs 2D convolution on an image.
     Args:
         m: input image
         k: kernel"""
-    # Check if kernel dimensions(x,y) are odd numbers
     kx, ky = k.shape[0], k.shape[1]
-    assert kx % 2 == 1 and ky % 2 == 1, "error: convolve: kernel dimensions must be odd numbers; got {} and {}".format(
+    assert kx % 2 == 1 and ky % 2 == 1, "convolution error: kernel dimensions must be odd numbers; got {} and {}".format(
         kx, ky)
 
-    # Remember the original type
-    orig_type, alpha, beta = np_to_cv_type(m.dtype)
-
+    orig_type, alpha, beta = np_to_cv_type(m.dtype)    # Remember the original type
     px, py = kx // 2, ky // 2   # Compute what padding is required
 
     # Pad matrix to deal with edges and corners and convert it to float64
-    padded = pad_matrix2D(m, 0, px, py)
+    padded = padding_matrix(m, 0, px, py)
 
     # padded64 = cv.normalize(padded, None, alpha=0, beta=1,
     #                         norm_type=cv.NORM_MINMAX, dtype=cv.CV_64F)
@@ -155,9 +168,7 @@ def convolve2D(m, k):
     # Initialize result matrix
     result64 = np.empty(m.shape, dtype=np.float64)
 
-    # Loop through the corresponding elements from the input matrix
-    # and convolve by replacing the value with the one-to-one multiplication
-    # of its neighbouring values and itself with elements from the kernel
+    # Loop through the image and perform the convolution
     nx, ny = m.shape
     for i in range(0, nx):
         for j in range(0, ny):
@@ -176,18 +187,18 @@ def convolve2D(m, k):
     return result
 
 
-def mean_filter2D(img, krow, kcol, ktype=np.float32):
+def mean_filter(img, krow, kcol, ktype=np.float32):
     """Performs mean filtering on the input image
     Args:
         img: input image
         krow: number of rows in kernel
         kcol: number of columns in kernel
         ktype: type"""
-    kernel = mean_distribution2D(krow, kcol, ktype=ktype)
-    return convolve2D(img, kernel)
+    kernel = mean_distribution(krow, kcol, ktype=ktype)
+    return convolution(img, kernel)
 
 
-def gaussian_filter2D(img, krow, kcol, amp, sx, sy, cx=0, cy=0,
+def gaussian_filter(img, krow, kcol, amp, sx, sy, cx=0, cy=0,
                       ktype=np.float32, normalize=True):
     """
     Performs Gaussian filtering on the input image
@@ -202,12 +213,11 @@ def gaussian_filter2D(img, krow, kcol, amp, sx, sy, cx=0, cy=0,
         cy: center on Y axis
         ktype: type
         normalize: normalize"""
-    kernel = gaussian_distribution2D(krow, kcol, amp, sx, sy, cx=cx, cy=cy,
+    kernel = gaussian_distribution(krow, kcol, amp, sx, sy, cx=cx, cy=cy,
                                      ktype=ktype, normalize=normalize)
-    return convolve2D(img, kernel)
+    return convolution(img, kernel)
 
 
-# Program entry point
 if __name__ == "__main__":
     print("OpenCV version " + cv.__version__)
     filepath = "kitty.bmp"
@@ -234,9 +244,9 @@ if __name__ == "__main__":
 
     # Start processing ----------------------------------------------------------
     # 2. Perform experiment for a mean filter kernel    ***********************
-    img_mean_blur = mean_filter2D(img, 3, 3, ktype=np.float64)
-    img_mean_sobelX = convolve2D(img_mean_blur, sobelX_kernel)
-    img_mean_sobelY = convolve2D(img_mean_blur, sobelY_kernel)
+    img_mean_blur = mean_filter(img, 3, 3, ktype=np.float64)
+    img_mean_sobelX = convolution(img_mean_blur, sobelX_kernel)
+    img_mean_sobelY = convolution(img_mean_blur, sobelY_kernel)
     img_mean_gradient = cv.addWeighted(img_mean_sobelX, 0.5,
                                        img_mean_sobelY, 0.5, 0)
     # Compute histogram
@@ -245,13 +255,13 @@ if __name__ == "__main__":
     img_mean_hist = img_mean_hist.reshape(256)
 
     # 2.3 Threshold to find edges
-    img_mean_edges = threshold2D_binary(img_mean_gradient, THRESH_VALUE)
+    img_mean_edges = thresholding_binary(img_mean_gradient, THRESH_VALUE)
 
     # 4. Perform experiment for an weighted-mean filter kernel  ***********************
-    img_gaussian_blur = gaussian_filter2D(img, GK_SIZE, GK_SIZE,
+    img_gaussian_blur = gaussian_filter(img, GK_SIZE, GK_SIZE,
                                           GK_AMP, GK_SX, GK_SY, ktype=np.float64)
-    img_gaussian_sobelX = convolve2D(img_gaussian_blur, sobelX_kernel)
-    img_gaussian_sobelY = convolve2D(img_gaussian_blur, sobelY_kernel)
+    img_gaussian_sobelX = convolution(img_gaussian_blur, sobelX_kernel)
+    img_gaussian_sobelY = convolution(img_gaussian_blur, sobelY_kernel)
     img_gaussian_gradient = cv.addWeighted(img_gaussian_sobelX, 0.5,
                                            img_gaussian_sobelY, 0.5, 0)
     # Compute histogram
@@ -260,7 +270,7 @@ if __name__ == "__main__":
     img_gaussian_hist = img_gaussian_hist.reshape(256)
 
     # 4.3 Threshold to find edges
-    img_gaussian_edges = threshold2D_binary(
+    img_gaussian_edges = thresholding_binary(
         img_gaussian_gradient, THRESH_VALUE)
 
     # Compare edge strength images
@@ -325,7 +335,7 @@ if __name__ == "__main__":
         cv.imwrite('img_gaussian_edges.jpg', img_gaussian_edges)
         print('Saving img_edge_comparison.jpg')
         cv.imwrite('img_edge_comparison.jpg', img_edge_comparison)
-        print('Images saved!')
+        print('All images saved!')
     else:
         cv.destroyAllWindows()
     sys.exit(0)
