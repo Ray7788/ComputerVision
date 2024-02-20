@@ -225,21 +225,22 @@ if __name__ == "__main__":
 
     # Define experiment parameters
     GK_SIZE = 7  # Gaussian kernel size
+    GK_SIZE_2 = 3  # Gaussian kernel size
     GK_AMP = 5  # Gaussian kernel amplitude
     GK_SX = 0.25  # Gaussian kernel spread on X axis
     GK_SY = 0.25  # Gaussian kernel spread on Y axis
-    THRESH_VALUE = 24
+    THRESH_VALUE = 35
     WINDOW_NAME = 'COMP37212 Lab1'
 
-    # Start processing ----------------------------------------------------------
-    # Average Filterings V.S. Weighted Average (Gaussian) Filtering
+    # Start comparison ----------------------------------------------------------
+    ### Average Filterings V.S. Weighted Average (Gaussian) Filtering
     # 2. Perform experiment for a mean filter kernel    ***********************
     img_mean_blur = mean_filter(img, GK_SIZE, GK_SIZE, ktype=np.float64)
     img_mean_sobelX = convolution(img_mean_blur, sobelX_kernel)
     img_mean_sobelY = convolution(img_mean_blur, sobelY_kernel)
     img_mean_gradient = cv.addWeighted(img_mean_sobelX, 0.5,
                                        img_mean_sobelY, 0.5, 0)
-    # Compute histogram
+    ### Compute histogram
     img_mean_hist = cv.calcHist(
         [img_mean_gradient], [0], None, [256], [0, 256])
     img_mean_hist = img_mean_hist.reshape(256)
@@ -254,7 +255,7 @@ if __name__ == "__main__":
     img_gaussian_sobelY = convolution(img_gaussian_blur, sobelY_kernel)
     img_gaussian_gradient = cv.addWeighted(img_gaussian_sobelX, 0.5,
                                            img_gaussian_sobelY, 0.5, 0)
-    # Compute histogram
+    ### Compute histogram
     img_gaussian_hist = cv.calcHist([img_gaussian_gradient], [
                                     0], None, [256], [0, 256])
     img_gaussian_hist = img_gaussian_hist.reshape(256)
@@ -265,7 +266,23 @@ if __name__ == "__main__":
     # Compare edge strength images
     img_edge_comparison = img_mean_edges - img_gaussian_edges
 
-    # Show all images in a single window for easy control with a slider
+    ### 2nd experiment for different kernel size
+    img_gaussian_blur_2 = gaussian_filter(img, GK_SIZE_2, GK_SIZE_2,
+                                          GK_AMP, GK_SX, GK_SY, ktype=np.float64)
+    img_gaussian_sobelX_2 = convolution(img_gaussian_blur_2, sobelX_kernel)
+    img_gaussian_sobelY_2 = convolution(img_gaussian_blur_2, sobelY_kernel)
+    img_gaussian_gradient_2 = cv.addWeighted(img_gaussian_sobelX_2, 0.5,
+                                           img_gaussian_sobelY_2, 0.5, 0)
+    # Compute histogram
+    img_gaussian_hist_2 = cv.calcHist([img_gaussian_gradient_2], [
+                                    0], None, [256], [0, 256])
+    img_gaussian_hist_2 = img_gaussian_hist_2.reshape(256)
+
+    # 4.3 Threshold to find edges
+    img_gaussian_edges_2 = thresholding_binary(img_gaussian_gradient_2, THRESH_VALUE)
+
+    
+    # Show all images in a single window for easy control with a slider ------------
     # 1st row --------------------- #
     horizontal = np.concatenate((img_mean_blur, img_mean_sobelX), axis=1)
     horizontal = np.concatenate((horizontal, img_mean_sobelY), axis=1)
