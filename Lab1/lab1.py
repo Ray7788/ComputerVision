@@ -207,6 +207,35 @@ def gaussian_filter(img, krow, kcol, amp, sx, sy, cx=0, cy=0,
     return convolution(img, kernel)
 
 
+def calc_gradient(img, title, theresholding_val, horizontal_gradient_kernel, vertical_gradient_kernel, filter, show_img=True, draw_hist=False, hist_title=""):        
+    # global horizontal_gradient_img, vertical_gradient_img, combined_gradient_img, theresholded_img, current_window
+    img_blur = mean_filter(img, horizontal_gradient_kernel, vertical_gradient_kernel, ktype=np.float64)
+    horizontal_gradient_img = convolution(img_blur, sobelX_kernel)
+    vertical_gradient_img = convolution(img_blur, sobelY_kernel)
+
+    # combined_gradient_img = np.sqrt(np.square(horizontal_gradient_img, dtype=np.float32) + np.square(vertical_gradient_img, dtype=np.float32), dtype=np.float32)
+    # combined_gradient_img = post_process(combined_gradient_img)
+    combined_gradient_img = cv.addWeighted(horizontal_gradient_img, 0.5,
+                                       vertical_gradient_img, 0.5, 0)
+
+    # 2.3 Threshold to find edges
+    theresholded_img = thresholding_binary(combined_gradient_img, theresholding_val)
+        
+    if draw_hist:
+        # plot the histogram
+        hist = cv.calcHist([combined_gradient_img], [0], None, [256], [0, 256])
+        # img_mean_hist = img_mean_hist.reshape(256)
+        plt.plot(hist)
+        plt.xlim([0, 256])
+    
+    # if show_img:
+    #     combine_images([horizontal_gradient_img, vertical_gradient_img, combined_gradient_img, theresholded_img], title, labels=['horizontal', 'vertical', 'edge strength', f'thereshold({theresholding_val})'])
+    #     cv.imshow('theresholded_img_'+title, theresholded_img)
+    #     cv.createTrackbar('threshold_'+title, 'theresholded_img_'+title, theresholding_val, 255, set_threshold)
+    # else:
+    #     return horizontal_gradient_img, vertical_gradient_img, combined_gradient_img, theresholded_img
+
+
 if __name__ == "__main__":
     print("OpenCV version " + cv.__version__)
     filepath = "kitty.bmp"
@@ -266,7 +295,7 @@ if __name__ == "__main__":
     # Compare edge strength images
     img_edge_comparison = img_mean_edges - img_gaussian_edges
 
-    ### 2nd experiment for different kernel size
+    ### 2nd experiment for different kernel size --------------------------------
     img_gaussian_blur_2 = gaussian_filter(img, GK_SIZE_2, GK_SIZE_2,
                                           GK_AMP, GK_SX, GK_SY, ktype=np.float64)
     img_gaussian_sobelX_2 = convolution(img_gaussian_blur_2, sobelX_kernel)
