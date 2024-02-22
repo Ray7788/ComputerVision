@@ -196,8 +196,7 @@ def gaussian_filter(img, krow, kcol, amp, sigma, cx=0, cy=0,
         krow: number of rows in kernel
         kcol: number of columns in kernel
         amp: amplitude
-        sx: spread on X axis
-        sy: spread on Y axis
+        sigma: standard deviation
         cx: center on X axis
         cy: center on Y axis
         ktype: type
@@ -260,7 +259,7 @@ def calc_gradient(img, theresholding_val,
     if filter == "mean_filter":
         img_blur = mean_filter(img, horizontal_gradient_kernel, vertical_gradient_kernel, ktype=np.float64)
     else:
-        img_blur = gaussian_filter(img, horizontal_gradient_kernel, vertical_gradient_kernel, 5, 0.25, 0.25, ktype=np.float64)
+        img_blur = gaussian_filter(img, horizontal_gradient_kernel, vertical_gradient_kernel, amp=1, sigma=3, ktype=np.float64)
     
     horizontal_gradient_img = convolution(img_blur, sobelX_kernel)
     vertical_gradient_img = convolution(img_blur, sobelY_kernel)
@@ -328,7 +327,7 @@ if __name__ == "__main__":
     GK_AMP = 5  # Gaussian kernel amplitude
     GK_SX = 0.25  # Gaussian kernel spread on X axis
     GK_SY = 0.25  # Gaussian kernel spread on Y axis
-    THRESH_VALUE = 25
+    THRESH_VALUE = 30
     WINDOW_NAME = 'COMP37212 Lab1'
 
     # Start comparison ----------------------------------------------------------
@@ -350,11 +349,15 @@ if __name__ == "__main__":
 
     ### 2nd experiment for different kernel size --------------------------------
     # Use Gaussian kernel with different sizes
-    img_gaussian_blur_, img_gaussian_sobelX_, img_gaussian_sobelY_, img_gaussian_gradient_, img_gaussian_edges_, _ = calc_gradient(img, THRESH_VALUE, 
+    img_gaussian_blur_3, img_gaussian_sobelX_3, img_gaussian_sobelY_3, img_gaussian_gradient_3, img_gaussian_edges_3, img_gaussian_hist_3 = calc_gradient(img, THRESH_VALUE, 
                                                                                                        GK_SIZE_2, GK_SIZE_2, 
                                                                                                        sobelX_kernel, sobelY_kernel,
-                                                                                                       "gaussian_filter", title="gaussian_filter_2")
+                                                                                                        "gaussian_filter", title="gaussian_filter_2")
     cv.waitKey(0)
     cv.destroyAllWindows()
     # ### 3rd experiment for different thresholding --------------------------------
+    img_gaussian_blur_, img_gaussian_sobelX_, img_gaussian_sobelY_, img_gaussian_gradient_, img_gaussian_edges_, _ = calc_gradient(img, THRESH_VALUE, 
+                                                                                                    GK_SIZE_2, GK_SIZE_2, 
+                                                                                                    sobelX_kernel, sobelY_kernel,
+                                                                                                    "gaussian_filter", title="gaussian_filter_2")
     sys.exit(0)
