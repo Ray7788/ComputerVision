@@ -231,7 +231,7 @@ def calc_gradient(img, theresholding_val,
                 sobelX_kernel, sobelY_kernel,
                 filter, title,
                 show_img=True, draw_hist=True, 
-                hist_title="", save_img=False
+                hist_title="", save_img=True
                 ):
     """Calculates the gradient of an image using the Sobel operator.
 
@@ -259,7 +259,7 @@ def calc_gradient(img, theresholding_val,
     if filter == "mean_filter":
         img_blur = mean_filter(img, horizontal_gradient_kernel, vertical_gradient_kernel, ktype=np.float64)
     else:
-        img_blur = gaussian_filter(img, horizontal_gradient_kernel, vertical_gradient_kernel, amp=1, sigma=3, ktype=np.float64)
+        img_blur = gaussian_filter(img, horizontal_gradient_kernel, vertical_gradient_kernel, amp=1, sigma=1.5, ktype=np.float64)
     
     horizontal_gradient_img = convolution(img_blur, sobelX_kernel)
     vertical_gradient_img = convolution(img_blur, sobelY_kernel)
@@ -280,14 +280,12 @@ def calc_gradient(img, theresholding_val,
         hist = cv.calcHist([combined_gradient_img], [0], None, [256], [0, 256])
         plt.plot(hist)
         plt.xlim([0, 256])
-        plt.title('Histogram'+title)
-
+        plt.ylabel('Frequency')
+        plt.xlabel('Value')
+        plt.title('Histogram of '+title)
+        plt.show()
         # gaussian_plot = plt.figure('Weighted-mean kernel image histogram')
         # plt.bar(np.linspace(0, 255, 256), img_gaussian_hist)
-        # plt.title('Histogram')
-        # plt.title('Gray level')
-        # plt.ylabel('Frequency')
-        # plt.show()
         
     if show_img:
         combine_images([img_blur,horizontal_gradient_img, vertical_gradient_img, combined_gradient_img, theresholded_img], title, labels=['blur','horizontal', 'vertical', 'edge strength', f'thereshold({theresholding_val})'])
