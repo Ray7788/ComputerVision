@@ -69,7 +69,7 @@ def mean_distribution(row, col, ktype=np.float32):
     Used for mean filtering."""
     return np.ones((row, col), dtype=ktype) / (row * col)
 
-def gaussian_distribution(row, col, amp, sx, sy,
+def gaussian_distribution(row, col, amp, sigma,
                             cx=0, cy=0,
                             ktype=np.float32,
                             normalize=True):
@@ -78,7 +78,7 @@ def gaussian_distribution(row, col, amp, sx, sy,
         row: number of rows
         col: number of columns
         amp: amplitude
-        sx/sy: spread on X/Y axis
+        sigma: standard deviation
         cx/cy: center on X/Y axis
         ktype: type of the matrix
         normalize: normalize"""
@@ -92,9 +92,9 @@ def gaussian_distribution(row, col, amp, sx, sy,
         for j in range(0, col):
             x = i - ax
             y = j - ay
-            gx = ((x-cx)**2) / (2 * sx**2)
-            gy = ((y-cy)**2) / (2 * sy**2)
-            value = amp * np.exp(-(gx + gy)) / (2 * np.pi * sx * sy)
+            gx = ((x-cx)**2) / (2 * sigma**2)
+            gy = ((y-cy)**2) / (2 * sigma**2)
+            value = amp * np.exp(-(gx + gy)) / (2 * np.pi * sigma**2)
             kernel[i, j] = value
             total = total + value
 
@@ -187,7 +187,7 @@ def mean_filter(img, krow, kcol, ktype=np.float32):
     return convolution(img, kernel)
 
 
-def gaussian_filter(img, krow, kcol, amp, sx, sy, cx=0, cy=0,
+def gaussian_filter(img, krow, kcol, amp, sigma, cx=0, cy=0,
                       ktype=np.float32, normalize=True):
     """
     Performs Gaussian filtering on the input image
@@ -202,17 +202,46 @@ def gaussian_filter(img, krow, kcol, amp, sx, sy, cx=0, cy=0,
         cy: center on Y axis
         ktype: type
         normalize: normalize"""
-    kernel = gaussian_distribution(krow, kcol, amp, sx, sy, cx=cx, cy=cy,
+    kernel = gaussian_distribution(krow, kcol, amp, sigma, cx=cx, cy=cy,
                                      ktype=ktype, normalize=normalize)
     return convolution(img, kernel)
 
 
-def calc_gradient(img, title, theresholding_val, horizontal_gradient_kernel, vertical_gradient_kernel, filter, show_img=True, draw_hist=False, hist_title=""):        
-    # global horizontal_gradient_img, vertical_gradient_img, combined_gradient_img, theresholded_img, current_window
-    img_blur = mean_filter(img, horizontal_gradient_kernel, vertical_gradient_kernel, ktype=np.float64)
+def calc_gradient(img, theresholding_val, 
+                horizontal_gradient_kernel, vertical_gradient_kernel,
+                sobelX_kernel, sobelY_kernel,
+                filter, title=None,
+                show_img=True, draw_hist=False, hist_title=""):
+    """Calculates the gradient of an image using the Sobel operator.
+
+    Args:
+        img: input image
+        theresholding_val: thresholding value
+        horizontal_gradient_kernel: horizontal gradient kernel
+        vertical_gradient_kernel: vertical gradient kernel
+        sobelX_kernel: Sobel X kernel
+        sobelY_kernel: Sobel Y kernel
+        filter: filter type
+        title: title
+        show_img: show image
+        draw_hist: draw histogram
+        hist_title: histogram title
+
+    Returns:
+        img_blur: blurred image
+        horizontal_gradient_img: horizontal gradient image
+        vertical_gradient_img: vertical gradient image
+        combined_gradient_img: combined gradient image
+        theresholded_img: thresholded image
+        hist: histogram"""
+
+    if filter == "mean_filter":
+        img_blur = mean_filter(img, horizontal_gradient_kernel, vertical_gradient_kernel, ktype=np.float64)
+    else:
+        img_blur = gaussian_filter(img, horizontal_gradient_kernel, vertical_gradient_kernel, 5, 0.25, 0.25, ktype=np.float64)
+    
     horizontal_gradient_img = convolution(img_blur, sobelX_kernel)
     vertical_gradient_img = convolution(img_blur, sobelY_kernel)
-
     # combined_gradient_img = np.sqrt(np.square(horizontal_gradient_img, dtype=np.float32) + np.square(vertical_gradient_img, dtype=np.float32), dtype=np.float32)
     # combined_gradient_img = post_process(combined_gradient_img)
     combined_gradient_img = cv.addWeighted(horizontal_gradient_img, 0.5,
@@ -221,10 +250,10 @@ def calc_gradient(img, title, theresholding_val, horizontal_gradient_kernel, ver
     # 2.3 Threshold to find edges
     theresholded_img = thresholding_binary(combined_gradient_img, theresholding_val)
         
-    if draw_hist:
-        # plot the histogram
-        hist = cv.calcHist([combined_gradient_img], [0], None, [256], [0, 256])
-        # img_mean_hist = img_mean_hist.reshape(256)
+    # Compute histogram
+    hist = cv.calcHist([combined_gradient_img], [0], None, [256], [0, 256])
+    hist = hist.reshape(256)
+    if draw_hist:           # plot the histogram
         plt.plot(hist)
         plt.xlim([0, 256])
     
@@ -233,7 +262,7 @@ def calc_gradient(img, title, theresholding_val, horizontal_gradient_kernel, ver
     #     cv.imshow('theresholded_img_'+title, theresholded_img)
     #     cv.createTrackbar('threshold_'+title, 'theresholded_img_'+title, theresholding_val, 255, set_threshold)
     # else:
-    #     return horizontal_gradient_img, vertical_gradient_img, combined_gradient_img, theresholded_img
+    return img_blur, horizontal_gradient_img, vertical_gradient_img, combined_gradient_img, theresholded_img, hist
 
 
 if __name__ == "__main__":
@@ -258,59 +287,34 @@ if __name__ == "__main__":
     GK_AMP = 5  # Gaussian kernel amplitude
     GK_SX = 0.25  # Gaussian kernel spread on X axis
     GK_SY = 0.25  # Gaussian kernel spread on Y axis
-    THRESH_VALUE = 35
+    THRESH_VALUE = 25
     WINDOW_NAME = 'COMP37212 Lab1'
 
     # Start comparison ----------------------------------------------------------
-    ### Average Filterings V.S. Weighted Average (Gaussian) Filtering
+    ### 1st experiment Average Filterings V.S. Weighted Average (Gaussian) Filtering
     # 2. Perform experiment for a mean filter kernel    ***********************
-    img_mean_blur = mean_filter(img, GK_SIZE, GK_SIZE, ktype=np.float64)
-    img_mean_sobelX = convolution(img_mean_blur, sobelX_kernel)
-    img_mean_sobelY = convolution(img_mean_blur, sobelY_kernel)
-    img_mean_gradient = cv.addWeighted(img_mean_sobelX, 0.5,
-                                       img_mean_sobelY, 0.5, 0)
-    ### Compute histogram
-    img_mean_hist = cv.calcHist(
-        [img_mean_gradient], [0], None, [256], [0, 256])
-    img_mean_hist = img_mean_hist.reshape(256)
-
-    # 2.3 Threshold to find edges
-    img_mean_edges = thresholding_binary(img_mean_gradient, THRESH_VALUE)
-
+    img_mean_blur, img_mean_sobelX, img_mean_sobelY, img_mean_gradient, img_mean_edges, img_mean_hist = calc_gradient(img, THRESH_VALUE, 
+                                                                                                       GK_SIZE, GK_SIZE, 
+                                                                                                       sobelX_kernel, sobelY_kernel,
+                                                                                                       "mean_filter")
     # 4. Perform experiment for an weighted-mean filter kernel  ***********************
-    img_gaussian_blur = gaussian_filter(img, GK_SIZE, GK_SIZE,
-                                          GK_AMP, GK_SX, GK_SY, ktype=np.float64)
-    img_gaussian_sobelX = convolution(img_gaussian_blur, sobelX_kernel)
-    img_gaussian_sobelY = convolution(img_gaussian_blur, sobelY_kernel)
-    img_gaussian_gradient = cv.addWeighted(img_gaussian_sobelX, 0.5,
-                                           img_gaussian_sobelY, 0.5, 0)
-    ### Compute histogram
-    img_gaussian_hist = cv.calcHist([img_gaussian_gradient], [
-                                    0], None, [256], [0, 256])
-    img_gaussian_hist = img_gaussian_hist.reshape(256)
-
-    # 4.3 Threshold to find edges
-    img_gaussian_edges = thresholding_binary(img_gaussian_gradient, THRESH_VALUE)
-
+    img_gaussian_blur, img_gaussian_sobelX, img_gaussian_sobelY, img_gaussian_gradient, img_gaussian_edges, img_gaussian_hist = calc_gradient(img, THRESH_VALUE,
+                                                                                                                            GK_SIZE, GK_SIZE,
+                                                                                                                            sobelX_kernel, sobelY_kernel,
+                                                                                                                            "gaussian_filter")
     # Compare edge strength images
     img_edge_comparison = img_mean_edges - img_gaussian_edges
 
     ### 2nd experiment for different kernel size --------------------------------
-    img_gaussian_blur_2 = gaussian_filter(img, GK_SIZE_2, GK_SIZE_2,
-                                          GK_AMP, GK_SX, GK_SY, ktype=np.float64)
-    img_gaussian_sobelX_2 = convolution(img_gaussian_blur_2, sobelX_kernel)
-    img_gaussian_sobelY_2 = convolution(img_gaussian_blur_2, sobelY_kernel)
-    img_gaussian_gradient_2 = cv.addWeighted(img_gaussian_sobelX_2, 0.5,
-                                           img_gaussian_sobelY_2, 0.5, 0)
-    # Compute histogram
-    img_gaussian_hist_2 = cv.calcHist([img_gaussian_gradient_2], [
-                                    0], None, [256], [0, 256])
-    img_gaussian_hist_2 = img_gaussian_hist_2.reshape(256)
+    # Use Gaussian kernel with different sizes
+    img_gaussian_blur_, img_gaussian_sobelX_, img_gaussian_sobelY_, img_gaussian_gradient_, img_gaussian_edges_, _ = calc_gradient(img, THRESH_VALUE, 
+                                                                                                       GK_SIZE_2, GK_SIZE_2, 
+                                                                                                       sobelX_kernel, sobelY_kernel,
+                                                                                                       "mean_filter", mean_filter)
 
-    # 4.3 Threshold to find edges
-    img_gaussian_edges_2 = thresholding_binary(img_gaussian_gradient_2, THRESH_VALUE)
+    ### 3rd experiment for different thresholding --------------------------------
 
-    
+
     # Show all images in a single window for easy control with a slider ------------
     # 1st row --------------------- #
     horizontal = np.concatenate((img_mean_blur, img_mean_sobelX), axis=1)
