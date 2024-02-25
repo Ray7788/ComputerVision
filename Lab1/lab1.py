@@ -69,6 +69,18 @@ def mean_distribution(row, col, ktype=np.float32):
     Used for mean filtering."""
     return np.ones((row, col), dtype=ktype) / (row * col)
 
+
+def post_process(img, orig_type, method="clip", alpha=0, beta=1):
+    if method == "clip":
+        return np.clip(img, 0, 255).astype("uint8")
+    elif method == "normalize":
+        new_img = cv.normalize(np.absolute(img), None, alpha=alpha, beta=beta,
+                          norm_type=cv.NORM_MINMAX, dtype=orig_type)
+        return new_img
+    else:
+        return img
+
+
 def gaussian_distribution(row, col, amp, sigma,
                             cx=0, cy=0,
                             ktype=np.float32,
@@ -151,8 +163,8 @@ def convolution(m, k):
 
     # padded64 = cv.normalize(padded, None, alpha=0, beta=1,
     #                         norm_type=cv.NORM_MINMAX, dtype=cv.CV_64F)
-    padded64 = custom_normalize(
-        padded, alpha=0, beta=1, norm_type='minmax', dtype=np.float64)
+    # padded64 = custom_normalize(
+    #     padded, alpha=0, beta=1, norm_type='minmax', dtype=np.float64)
 
     # Initialize result matrix
     result64 = np.empty(m.shape, dtype=np.float64)
@@ -161,7 +173,7 @@ def convolution(m, k):
     nx, ny = m.shape
     for i in range(0, nx):
         for j in range(0, ny):
-            region = padded64[i:i+kx, j:j+ky]
+            region = padded[i:i+kx, j:j+ky]
             result64[i, j] = np.sum(region * k)
 
     # Return part of the padded matrix that forms the output
@@ -173,6 +185,8 @@ def convolution(m, k):
                           norm_type=cv.NORM_MINMAX, dtype=orig_type)
     # result = custom_normalize(np.absolute(
     #     result64), alpha=alpha, beta=beta, norm_type='minmax', dtype=orig_type)
+    # result = post_process(result64, orig_type, method="clip", alpha=alpha, beta=beta)
+
     return result
 
 
@@ -323,9 +337,7 @@ if __name__ == "__main__":
     GK_SIZE = 7  # Gaussian kernel size
     GK_SIZE_2 = 3  # Gaussian kernel size
     GK_AMP = 5  # Gaussian kernel amplitude
-    GK_SX = 0.25  # Gaussian kernel spread on X axis
-    GK_SY = 0.25  # Gaussian kernel spread on Y axis
-    THRESH_VALUE = 30
+    THRESH_VALUE = 40  # Threshold value
     WINDOW_NAME = 'COMP37212 Lab1'
 
     # Start comparison ----------------------------------------------------------
@@ -347,7 +359,7 @@ if __name__ == "__main__":
 
     ### 2nd experiment for different kernel size --------------------------------
     # Use Gaussian kernel with different sizes
-    img_gaussian_blur_3, img_gaussian_sobelX_3, img_gaussian_sobelY_3, img_gaussian_gradient_3, img_gaussian_edges_3, img_gaussian_hist_3 = calc_gradient(img, THRESH_VALUE, 
+    img_gaussian_blur_3, img_gaussian_sobelX_3, img_gaussian_sobelY_3, img_gaussian_gradient_3, img_gaussian_edges_3, img_gaussian_hist_3 = calc_gradient(img, 40, 
                                                                                                        GK_SIZE_2, GK_SIZE_2, 
                                                                                                        sobelX_kernel, sobelY_kernel,
                                                                                                         "gaussian_filter", title="gaussian_filter_2")
