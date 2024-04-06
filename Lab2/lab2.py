@@ -9,7 +9,9 @@ import matplotlib.pyplot as plt
 SIGMA = 0.5
 GAUSSIAN_SIZE = 5
 ALPHA = 0.05
-THRESHOLD = 1e8
+THRESHOLD = 50000
+# THRESHOLD = 50
+
 RATIO = 0.7
 LIMIT = 50
 DIRECTORY = 'output_group'
@@ -19,6 +21,7 @@ if not os.path.exists(DIRECTORY):
 
 # 1. Feature detection
 def HarrisPointsDetector(mat, threshold=THRESHOLD, alpha=ALPHA, sigma=SIGMA, gaussian_size=GAUSSIAN_SIZE):
+    mat = cv.GaussianBlur(mat, (0, 0), 3)
     # Calculate the derivatives of x and y
     Ix = cv.Sobel(mat, cv.CV_64F, 1, 0, ksize=3, borderType=cv.BORDER_REFLECT)
     Iy = cv.Sobel(mat, cv.CV_64F, 0, 1, ksize=3, borderType=cv.BORDER_REFLECT)
@@ -43,8 +46,8 @@ def HarrisPointsDetector(mat, threshold=THRESHOLD, alpha=ALPHA, sigma=SIGMA, gau
     traceM = Ixx + Iyy
     R = detM - alpha * (traceM ** 2)  # corner strength function, R
     
-    if 0 < threshold < 1:
-        threshold = threshold * np.max(R)
+    # if 0 < threshold < 1:
+    #     threshold = threshold * np.max(R)
     localMaxima = (R == maximum_filter(R, size=7, mode='reflect'))
     localMaxima = localMaxima * (R > threshold)
     interest_points = np.argwhere(localMaxima)
@@ -160,8 +163,7 @@ def labelImage(image, text):
 
 # Source data input
 bernie = cv.imread('group/bernieSanders.jpg', cv.IMREAD_GRAYSCALE)
-# bernie = cv.imread('group/bernieSanders.jpg', cv.IMREAD_COLOR)
-
+# with different types of variations
 bernie_dark = cv.imread('group/darkerBernie.jpg', cv.IMREAD_GRAYSCALE)  # with less brightness 
 bernie_bright = cv.imread('group/brighterBernie.jpg', cv.IMREAD_GRAYSCALE) # with more brightness
 bernie_blur = cv.imread('group/BernieMoreblurred.jpg', cv.IMREAD_GRAYSCALE) # with more blur
@@ -243,7 +245,7 @@ def testFeatureMatcher3(image):
     displayImages([bernie_match_orb, bernie_match_orb_fast, bernie_match_orb_harris], ['ORB', 'ORB_FAST', 'ORB_HARRIS'], 'Interest Points')
     print("Done")
 
-def testFeatureMatcher2(image):
+def testTwoFeatureMatchers(image):
     """
     Test the feature matcher on different matcher:
     SSDFeatureMatcher and RatioFeatureMatcher using the ORB descriptor
@@ -264,7 +266,7 @@ def testFeatureMatcher2(image):
     print("Done")
 
 
-def testFeatureMatcher4(image):
+def testThreshold(image):
     """
     Test different threshold values using the SSD feature matcher
     """
@@ -304,9 +306,9 @@ def testFeatureMatcher5(image):
     matches_05 = RatioFeatureMatcher(bernie_descriptors['orb'][1], des, ratio=0.5)
     matches_03 = RatioFeatureMatcher(bernie_descriptors['orb'][1], des, ratio=0.3)
     
-    bernie_match_1 = cv.drawMatches(labelImage(bernie, 'Original'), bernie_descriptors['orb'][0], labelImage(image, 'Dark'), kp, matches_07, None, flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
-    bernie_match_2 = cv.drawMatches(labelImage(bernie, 'Original'), bernie_descriptors['orb'][0], labelImage(image, 'Dark'), kp, matches_05, None, flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
-    bernie_match_3 = cv.drawMatches(labelImage(bernie, 'Original'), bernie_descriptors['orb'][0], labelImage(image, 'Dark'), kp, matches_03, None, flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+    bernie_match_1 = cv.drawMatches(labelImage(bernie, 'Original'), bernie_descriptors['orb'][0], labelImage(image, 'Noisy'), kp, matches_07, None, flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+    bernie_match_2 = cv.drawMatches(labelImage(bernie, 'Original'), bernie_descriptors['orb'][0], labelImage(image, 'Noisy'), kp, matches_05, None, flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+    bernie_match_3 = cv.drawMatches(labelImage(bernie, 'Original'), bernie_descriptors['orb'][0], labelImage(image, 'Noisy'), kp, matches_03, None, flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
     
     cv.imwrite('output_group/bernie_match_07.jpg', bernie_match_1)
     cv.imwrite('output_group/bernie_match_05.jpg', bernie_match_2)
@@ -325,16 +327,28 @@ def testThresholds(thr_test_values):
     Test different threshold values using the HarrisPointsDetector
     """
     bernie_thresholds = []
-    
+    detected_points_counts = []
+
     for i, thr in enumerate(thr_test_values):
         keypoints = HarrisPointsDetector(bernie, threshold=thr)
+        detected_points_counts.append(len(keypoints))
+        print(f"Number of keypoints detected: {len(keypoints)}")
         image = drawKpImage(bernie, keypoints)
         bernie_thresholds.append(image)
         filename = 'output_group/bernie_threshold_{:.2e}.jpg'.format(thr)
         cv.imwrite(filename, image)
+        
     labels = ["threshold={:e}".format(thr) for thr in thr_test_values]
     displayImages(bernie_thresholds[:3], labels[:3], 'Interest Points with different thresholds')
     displayImages(bernie_thresholds[3:], labels[3:], 'Interest Points with different thresholds')
+
+    # Plot the number of detected feature points vs. threshold values
+    plt.plot(thr_test_values, detected_points_counts)
+    plt.xlabel('Threshold Values')
+    plt.ylabel('Number of Detected Feature Points')
+    plt.title('Number of Detected Feature Points vs. Threshold Values')
+    plt.grid(True)
+    plt.savefig('feature_points_vs_threshold.png')
 
 def getMatchImage(image, descriptor='orb'):
     """
@@ -357,19 +371,20 @@ def testBernieMatches(images, labels):
     displayImages(match_imgs, labels, 'Bernie Sanders Matches')
 
 if __name__ == "__main__":
-    testHarrisDetector()
+    # testHarrisDetector()
     # testFeatureMatcher()
-    # testFeatureMatcher2(bernie_dark) # Not very straightforward
-    # testFeatureMatcher2(bernie_pixel)
+    # testTwoFeatureMatchers(bernie_dark) # Not very straightforward
+    # testTwoFeatureMatchers(bernie_pixel)
     # testFeatureMatcher3(bernie_pixel)
-    # testFeatureMatcher4(bernie_blur)--------
-    # testFeatureMatcher5(bernie_noisy)
+    # testThreshold(bernie_blur)--------
+    testFeatureMatcher5(bernie_noisy)
 
     # testBernieMatches([bernie_friends, bernie_salon, bernie_school], ['Friends', 'Salon', 'School'])
     # testBernieMatches([bernie_dark, bernie_bright], ['Dark', 'Bright'])
     # -------- testBernieMatches([bernie_180, bernie_pixel, bernie_noisy, bernie_blur], ['180', 'Pixel', 'Noisy', 'Blur'])
 
-    # testThresholds([-1e3, 0, 1e3, 1e6, 1e7, 1e8])
+# threshold_values = [1e7, 5e7, 1e8, 5e8, 1e9]  # Example threshold values to try [-1e3, 0, 1e3, 1e6, 1e7, 1e8]
+    # testThresholds([1e6 ,5e6, 1e7, 5e7, 1e8, 5e8, 1e9])
 
     print("End of the program")
 
