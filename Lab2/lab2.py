@@ -1,3 +1,4 @@
+import os
 import sys
 import cv2 as cv
 from scipy.ndimage import sobel, gaussian_filter, convolve, maximum_filter
@@ -8,10 +9,13 @@ import matplotlib.pyplot as plt
 SIGMA = 0.5
 GAUSSIAN_SIZE = 5
 ALPHA = 0.05
-THRESHOLD = 1e7
+THRESHOLD = 1e8
 RATIO = 0.7
 LIMIT = 50
+DIRECTORY = 'output_group'
 
+if not os.path.exists(DIRECTORY):
+    os.makedirs('output_group')
 
 # 1. Feature detection
 def HarrisPointsDetector(mat, threshold=THRESHOLD, alpha=ALPHA, sigma=SIGMA, gaussian_size=GAUSSIAN_SIZE):
@@ -54,6 +58,9 @@ def HarrisPointsDetector(mat, threshold=THRESHOLD, alpha=ALPHA, sigma=SIGMA, gau
 
 # 2. Feature description
 def createDescriptor(image, keypoints, descriptor='all'):
+    """
+    Create a descriptor for the given image and keypoints
+    """
     if descriptor == 'orb':
         orb = cv.ORB_create()
         kp, des = orb.compute(image, keypoints)
@@ -136,7 +143,7 @@ def displayImages(images: list, labels: list, title: str):
         sys.exit()
 
 
-def drawKpImage(image, keypoints, color=(0, 255, 255), scale=1):
+def drawKpImage(image, keypoints, color=(0, 255, 0), scale=1):
     keypoints_image = image.copy()
     keypoints_image = cv.drawKeypoints(
         image, keypoints, keypoints_image, color=color)
@@ -168,13 +175,14 @@ bernie_salon = cv.imread(
 bernie_school = cv.imread('group/bernieShoolLunch.jpeg', cv.IMREAD_GRAYSCALE)
 
 # bernie_gray = cv.cvtColor(bernie, cv.COLOR_BGR2GRAY)
+# Use bernieSanders.jpg as the original image and HarrisPointsDetector and default descriptor
 bernie_keypoints = HarrisPointsDetector(bernie)
 bernie_descriptors = createDescriptor(bernie, bernie_keypoints)
 
 
 def testHarrisDetector():
     """
-    Test one single image on the Harri/ORB/Fast detector
+    Test the original image on the self-implemented Harris/ OpenCV's Harris/Fast detector
     The output should be some keypoints detected in the image
     """
     kp = drawKpImage(bernie, bernie_descriptors['orb'][0])
@@ -182,46 +190,26 @@ def testHarrisDetector():
     kp_harris = drawKpImage(bernie, bernie_descriptors['orb_harris'][0])
 
     try:
-            cv.imwrite('output_group/bernie_kp.jpg', kp)
-            cv.imwrite('output_group/bernie_kp_fast.jpg', kp_fast)
-            cv.imwrite('output_group/bernie_kp_harris.jpg', kp_harris)
-            print('Saved images successfully!')
+        cv.imwrite('output_group/bernie_kp_self.jpg', kp)
+        cv.imwrite('output_group/bernie_kp_fast.jpg', kp_fast)
+        cv.imwrite('output_group/bernie_kp_harris.jpg', kp_harris)
+        print('Saved images successfully!')
     except Exception as e:
-            print("An error occurred while writing the images: ", e)
+        print("An error occurred while writing the images: ", e)
     displayImages([kp, kp_fast, kp_harris], [
                   'ORB', 'ORB_FAST', 'ORB_HARRIS'], 'Interest Points')
     print("Done")
 
-
-# def testFeatureMatcher():
-#     """
-#     Test one image with different feature detectors
-#     """
-#     matches1 = RatioFeatureMatcher(bernie_descriptors['orb'][1], bernie_descriptors['orb_fast'][1], limit=20)
-#     matches2 = RatioFeatureMatcher(bernie_descriptors['orb'][1], bernie_descriptors['orb_harris'][1], limit=20)
-
-#     bernie_match_fast = cv.drawMatches(labelImage(bernie, 'self-implemented Harris'), bernie_descriptors['orb'][0], labelImage(
-#         bernie, 'OpenCV FAST'), bernie_descriptors['orb_fast'][0], matches1, None, flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
-#     bernie_match_harris = cv.drawMatches(labelImage(bernie, 'self-implemented Harris'), bernie_descriptors['orb'][0], labelImage(
-#         bernie, 'OpenCV Harris'), bernie_descriptors['orb_harris'][0], matches2, None, flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
-
-#     cv.imshow('bernie_match_fast', cv.resize(
-#         bernie_match_fast, (0, 0), fx=0.25, fy=0.25))
-#     cv.imwrite('out_group/bernie_match_fast.jpg', bernie_match_fast)
-#     cv.imshow('bernie_match_harris', cv.resize(
-#         bernie_match_harris, (0, 0), fx=0.25, fy=0.25))
-#     cv.imwrite('out_group/bernie_match_harris.jpg', bernie_match_harris)
-
-
 def testFeatureMatcher():
     """
     Test the original image with different feature detectors: ORB_FAST, ORB_HARRIS using the RatioFeatureMatcher
+    output matcher images for each detector
     """
     matches1 = RatioFeatureMatcher(bernie_descriptors['orb'][1], bernie_descriptors['orb_fast'][1], limit=20)
     matches2 = RatioFeatureMatcher(bernie_descriptors['orb'][1], bernie_descriptors['orb_harris'][1], limit=20)
 
-    bernie_match_fast = cv.drawMatches(labelImage(bernie, 'self-implemented Harris'), bernie_descriptors['orb'][0], labelImage(bernie, 'OpenCV FAST'), bernie_descriptors['orb_fast'][0], matches1, None, flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
-    bernie_match_harris = cv.drawMatches(labelImage(bernie, 'self-implemented Harris'), bernie_descriptors['orb'][0], labelImage(bernie, 'OpenCV Harris'), bernie_descriptors['orb_harris'][0], matches2, None, flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+    bernie_match_fast = cv.drawMatches(labelImage(bernie, 'self-designed Harris'), bernie_descriptors['orb'][0], labelImage(bernie, 'OpenCV FAST'), bernie_descriptors['orb_fast'][0], matches1, None, flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+    bernie_match_harris = cv.drawMatches(labelImage(bernie, 'self-designed Harris'), bernie_descriptors['orb'][0], labelImage(bernie, 'OpenCV Harris'), bernie_descriptors['orb_harris'][0], matches2, None, flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
 
     cv.imshow('bernie_match_fast', cv.resize(bernie_match_fast, (0,0), fx=0.25, fy=0.25))
     cv.imwrite('output_group/bernie_match_fast.jpg', bernie_match_fast)
@@ -229,9 +217,11 @@ def testFeatureMatcher():
     cv.imwrite('output_group/bernie_match_harris.jpg', bernie_match_harris)
     print("Done")
 
+
 def testFeatureMatcher3(image):
     """
     One certain image with different feature detectors: ORB, ORB_FAST, ORB_HARRIS using the RatioFeatureMatcher
+    output matcher images for each detector
     suggest use images except the original image: bernie 
     """
     kp_orb, des_orb = createDescriptor(image, HarrisPointsDetector(image), descriptor='orb')
@@ -255,7 +245,9 @@ def testFeatureMatcher3(image):
 
 def testFeatureMatcher2(image):
     """
-    Test the feature matcher on SSDFeatureMatcher and RatioFeatureMatcher using the ORB descriptor
+    Test the feature matcher on different matcher:
+    SSDFeatureMatcher and RatioFeatureMatcher using the ORB descriptor
+    suggest use darkBernie image
     """
     kp, des = createDescriptor(image, HarrisPointsDetector(image), descriptor='orb')
     ssd_matches = SSDFeatureMatcher(bernie_descriptors['orb'][1], des)
@@ -334,9 +326,12 @@ def testThresholds(thr_test_values):
     """
     bernie_thresholds = []
     
-    for thr in thr_test_values:
+    for i, thr in enumerate(thr_test_values):
         keypoints = HarrisPointsDetector(bernie, threshold=thr)
-        bernie_thresholds.append(drawKpImage(bernie, keypoints))
+        image = drawKpImage(bernie, keypoints)
+        bernie_thresholds.append(image)
+        filename = 'output_group/bernie_threshold_{:.2e}.jpg'.format(thr)
+        cv.imwrite(filename, image)
     labels = ["threshold={:e}".format(thr) for thr in thr_test_values]
     displayImages(bernie_thresholds[:3], labels[:3], 'Interest Points with different thresholds')
     displayImages(bernie_thresholds[3:], labels[3:], 'Interest Points with different thresholds')
@@ -362,14 +357,15 @@ def testBernieMatches(images, labels):
     displayImages(match_imgs, labels, 'Bernie Sanders Matches')
 
 if __name__ == "__main__":
-    # testHarrisDetector()
+    testHarrisDetector()
     # testFeatureMatcher()
-    # testFeatureMatcher2(bernie_dark)
+    # testFeatureMatcher2(bernie_dark) # Not very straightforward
+    # testFeatureMatcher2(bernie_pixel)
     # testFeatureMatcher3(bernie_pixel)
     # testFeatureMatcher4(bernie_blur)--------
     # testFeatureMatcher5(bernie_noisy)
 
-    testBernieMatches([bernie_friends, bernie_salon, bernie_school], ['Friends', 'Salon', 'School'])
+    # testBernieMatches([bernie_friends, bernie_salon, bernie_school], ['Friends', 'Salon', 'School'])
     # testBernieMatches([bernie_dark, bernie_bright], ['Dark', 'Bright'])
     # -------- testBernieMatches([bernie_180, bernie_pixel, bernie_noisy, bernie_blur], ['180', 'Pixel', 'Noisy', 'Blur'])
 
