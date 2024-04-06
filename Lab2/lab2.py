@@ -220,31 +220,6 @@ def testFeatureMatcher():
     print("Done")
 
 
-def testFeatureMatcher3(image):
-    """
-    One certain image with different feature detectors: ORB, ORB_FAST, ORB_HARRIS using the RatioFeatureMatcher
-    output matcher images for each detector
-    suggest use images except the original image: bernie 
-    """
-    kp_orb, des_orb = createDescriptor(image, HarrisPointsDetector(image), descriptor='orb')
-    kp_orb_fast, des_orb_fast = createDescriptor(image, HarrisPointsDetector(image), descriptor='orb_fast')
-    kp_orb_harris, des_orb_harris = createDescriptor(image, HarrisPointsDetector(image), descriptor='orb_harris')
-
-    matches_orb = RatioFeatureMatcher(bernie_descriptors['orb'][1], des_orb)
-    matches_orb_fast = RatioFeatureMatcher(bernie_descriptors['orb_fast'][1], des_orb_fast)
-    matches_orb_harris = RatioFeatureMatcher(bernie_descriptors['orb_harris'][1], des_orb_harris)
-    
-    bernie_match_orb = cv.drawMatches(labelImage(bernie, 'Original'), bernie_descriptors['orb'][0], labelImage(image, 'Dark'), kp_orb, matches_orb, None, flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
-    bernie_match_orb_fast = cv.drawMatches(labelImage(bernie, 'Original'), bernie_descriptors['orb_fast'][0], labelImage(image, 'Dark'), kp_orb_fast, matches_orb_fast, None, flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
-    bernie_match_orb_harris = cv.drawMatches(labelImage(bernie, 'Original'), bernie_descriptors['orb_harris'][0], labelImage(image, 'Dark'), kp_orb_harris, matches_orb_harris, None, flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
-    
-    cv.imwrite('img/bernie_match_orb.jpg', bernie_match_orb)
-    cv.imwrite('img/bernie_match_orb_fast.jpg', bernie_match_orb_fast)
-    cv.imwrite('img/bernie_match_orb_harris.jpg', bernie_match_orb_harris)
-    
-    displayImages([bernie_match_orb, bernie_match_orb_fast, bernie_match_orb_harris], ['ORB', 'ORB_FAST', 'ORB_HARRIS'], 'Interest Points')
-    print("Done")
-
 def testTwoFeatureMatchers(image):
     """
     Test the feature matcher on different matcher:
@@ -296,7 +271,7 @@ def testThreshold(image):
     print("Done")
 
 
-def testFeatureMatcher5(image):
+def TestDifferentRatio(image):
     """
     Test the different ratio for RatioFeatureMatcher using the ORB descriptor
     """
@@ -377,7 +352,7 @@ if __name__ == "__main__":
     # testTwoFeatureMatchers(bernie_pixel)
     # testFeatureMatcher3(bernie_pixel)
     # testThreshold(bernie_blur)--------
-    testFeatureMatcher5(bernie_noisy)
+    TestDifferentRatio(bernie_noisy)
 
     # testBernieMatches([bernie_friends, bernie_salon, bernie_school], ['Friends', 'Salon', 'School'])
     # testBernieMatches([bernie_dark, bernie_bright], ['Dark', 'Bright'])
