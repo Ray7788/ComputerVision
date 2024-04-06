@@ -297,7 +297,7 @@ def TestDifferentRatio(image):
     print("Done")
 
 
-def testThresholds(thr_test_values):
+def testThresholdsDetector(thr_test_values):
     """
     Test different threshold values using the HarrisPointsDetector
     """
@@ -359,7 +359,7 @@ if __name__ == "__main__":
     # -------- testBernieMatches([bernie_180, bernie_pixel, bernie_noisy, bernie_blur], ['180', 'Pixel', 'Noisy', 'Blur'])
 
 # threshold_values = [1e7, 5e7, 1e8, 5e8, 1e9]  # Example threshold values to try [-1e3, 0, 1e3, 1e6, 1e7, 1e8]
-    # testThresholds([1e6 ,5e6, 1e7, 5e7, 1e8, 5e8, 1e9])
+    # testThresholdsDetector([1e6 ,5e6, 1e7, 5e7, 1e8, 5e8, 1e9])
 
     print("End of the program")
 
