@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 SIGMA = 0.5
 GAUSSIAN_SIZE = 5
 ALPHA = 0.05
-THRESHOLD = 50000
+THRESHOLD = 18000   # best threshold for bernieSanders.jpg
 # THRESHOLD = 50
 
 RATIO = 0.7
@@ -219,6 +219,30 @@ def testFeatureMatcher():
     cv.imwrite('output_group/bernie_match_harris.jpg', bernie_match_harris)
     print("Done")
 
+def testSingleImageFeatureMatcher(image, image_name='Dark'):
+    """
+    One certain image with different feature detectors: ORB, ORB_FAST, ORB_HARRIS using the RatioFeatureMatcher
+    output matcher images for each detector
+    suggest use images except the original image: bernie 
+    """
+    kp_orb, des_orb = createDescriptor(image, HarrisPointsDetector(image), descriptor='orb')
+    kp_orb_fast, des_orb_fast = createDescriptor(image, HarrisPointsDetector(image), descriptor='orb_fast')
+    kp_orb_harris, des_orb_harris = createDescriptor(image, HarrisPointsDetector(image), descriptor='orb_harris')
+
+    matches_orb = RatioFeatureMatcher(bernie_descriptors['orb'][1], des_orb)
+    matches_orb_fast = RatioFeatureMatcher(bernie_descriptors['orb_fast'][1], des_orb_fast)
+    matches_orb_harris = RatioFeatureMatcher(bernie_descriptors['orb_harris'][1], des_orb_harris)
+
+    bernie_match_orb = cv.drawMatches(labelImage(bernie, 'Original'), bernie_descriptors['orb'][0], labelImage(image, image_name), kp_orb, matches_orb, None, flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+    bernie_match_orb_fast = cv.drawMatches(labelImage(bernie, 'Original'), bernie_descriptors['orb_fast'][0], labelImage(image, image_name), kp_orb_fast, matches_orb_fast, None, flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+    bernie_match_orb_harris = cv.drawMatches(labelImage(bernie, 'Original'), bernie_descriptors['orb_harris'][0], labelImage(image, image_name), kp_orb_harris, matches_orb_harris, None, flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+
+    cv.imwrite(f'output_group/{image_name}_match_orb.jpg', bernie_match_orb)
+    cv.imwrite(f'output_group/{image_name}_match_orb_fast.jpg', bernie_match_orb_fast)
+    cv.imwrite(f'output_group/{image_name}_match_orb_harris.jpg', bernie_match_orb_harris)
+
+    # displayImages([bernie_match_orb, bernie_match_orb_fast, bernie_match_orb_harris], ['ORB', 'ORB_FAST', 'ORB_HARRIS'], 'Interest Points')
+    print("Done")
 
 def testTwoFeatureMatchers(image):
     """
@@ -241,7 +265,7 @@ def testTwoFeatureMatchers(image):
     print("Done")
 
 
-def testThreshold(image):
+def testThresholdMatcher(image):
     """
     Test different threshold values using the SSD feature matcher
     """
@@ -271,7 +295,7 @@ def testThreshold(image):
     print("Done")
 
 
-def TestDifferentRatio(image):
+def TestDifferentRatio(image, image_name='pixelated'):
     """
     Test the different ratio for RatioFeatureMatcher using the ORB descriptor
     """
@@ -281,14 +305,14 @@ def TestDifferentRatio(image):
     matches_05 = RatioFeatureMatcher(bernie_descriptors['orb'][1], des, ratio=0.5)
     matches_03 = RatioFeatureMatcher(bernie_descriptors['orb'][1], des, ratio=0.3)
     
-    bernie_match_1 = cv.drawMatches(labelImage(bernie, 'Original'), bernie_descriptors['orb'][0], labelImage(image, 'Noisy'), kp, matches_07, None, flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
-    bernie_match_2 = cv.drawMatches(labelImage(bernie, 'Original'), bernie_descriptors['orb'][0], labelImage(image, 'Noisy'), kp, matches_05, None, flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
-    bernie_match_3 = cv.drawMatches(labelImage(bernie, 'Original'), bernie_descriptors['orb'][0], labelImage(image, 'Noisy'), kp, matches_03, None, flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+    bernie_match_1 = cv.drawMatches(labelImage(bernie, 'Original'), bernie_descriptors['orb'][0], labelImage(image, image_name), kp, matches_07, None, flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+    bernie_match_2 = cv.drawMatches(labelImage(bernie, 'Original'), bernie_descriptors['orb'][0], labelImage(image, image_name), kp, matches_05, None, flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+    bernie_match_3 = cv.drawMatches(labelImage(bernie, 'Original'), bernie_descriptors['orb'][0], labelImage(image, image_name), kp, matches_03, None, flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
     
-    cv.imwrite('output_group/bernie_match_07.jpg', bernie_match_1)
-    cv.imwrite('output_group/bernie_match_05.jpg', bernie_match_2)
-    cv.imwrite('output_group/bernie_match_03.jpg', bernie_match_3)
-    
+    cv.imwrite(f'output_group/{image_name}_bernie_match_07.jpg', bernie_match_1)
+    cv.imwrite(f'output_group/{image_name}_bernie_match_05.jpg', bernie_match_2)
+    cv.imwrite(f'output_group/{image_name}_bernie_match_03.jpg', bernie_match_3)
+
     cv.imshow('bernie_match_07', cv.resize(bernie_match_1, (0,0), fx=0.25, fy=0.25))
     cv.imshow('bernie_match_05', cv.resize(bernie_match_2, (0,0), fx=0.25, fy=0.25))
     cv.imshow('bernie_match_03', cv.resize(bernie_match_3, (0,0), fx=0.25, fy=0.25))
@@ -325,11 +349,12 @@ def testThresholdsDetector(thr_test_values):
     plt.grid(True)
     plt.savefig('feature_points_vs_threshold.png')
 
+# Used for testing the feature matcher on different images --------------------------------
 def getMatchImage(image, descriptor='orb'):
     """
     Get the match image for the given image and descriptor using the RatioFeatureMatcher
     """
-    kp, des = createDescriptor(image, HarrisPointsDetector(image), descriptor='orb')
+    kp, des = createDescriptor(image, HarrisPointsDetector(image), descriptor='orb_fast')
     matches = RatioFeatureMatcher(bernie_descriptors[descriptor][1], des, limit=20)
     match_image = cv.drawMatches(bernie, bernie_descriptors[descriptor][0], image, kp, matches, None, flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
     return match_image
@@ -350,16 +375,16 @@ if __name__ == "__main__":
     # testFeatureMatcher()
     # testTwoFeatureMatchers(bernie_dark) # Not very straightforward
     # testTwoFeatureMatchers(bernie_pixel)
-    # testFeatureMatcher3(bernie_pixel)
-    # testThreshold(bernie_blur)--------
-    TestDifferentRatio(bernie_noisy)
+    # testSingleImageFeatureMatcher(bernie_180, 'Roated 180 degrees') 
+    # testThresholdMatcher(bernie_blur)--------
+    # TestDifferentRatio(bernie_blur, 'Dark')
 
     # testBernieMatches([bernie_friends, bernie_salon, bernie_school], ['Friends', 'Salon', 'School'])
     # testBernieMatches([bernie_dark, bernie_bright], ['Dark', 'Bright'])
     # -------- testBernieMatches([bernie_180, bernie_pixel, bernie_noisy, bernie_blur], ['180', 'Pixel', 'Noisy', 'Blur'])
 
-# threshold_values = [1e7, 5e7, 1e8, 5e8, 1e9]  # Example threshold values to try [-1e3, 0, 1e3, 1e6, 1e7, 1e8]
-    # testThresholdsDetector([1e6 ,5e6, 1e7, 5e7, 1e8, 5e8, 1e9])
+    # threshold_values = [1e7, 5e7, 1e8, 5e8, 1e9]  # Example threshold values to try [-1e3, 0, 1e3, 1e6, 1e7, 1e8]
+    testThresholdsDetector([1e2 ,5e2, 1e3, 5e3, 1e4])
 
     print("End of the program")
 
