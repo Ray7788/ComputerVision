@@ -20,34 +20,31 @@ if not os.path.exists(DIRECTORY):
     os.makedirs('output_group')
 
 # 1. Feature detection
-def HarrisPointsDetector(mat, threshold=THRESHOLD, alpha=ALPHA, sigma=SIGMA, gaussian_size=GAUSSIAN_SIZE):
+def HarrisPointsDetector(mat, gaussian_size=GAUSSIAN_SIZE, threshold=THRESHOLD, alpha=ALPHA, sigma=SIGMA):
+    """
+    Detect the Harris corner points in the given image
+    """
+    # Apply Gaussian filter to the image
     mat = cv.GaussianBlur(mat, (0, 0), 3)
     # Calculate the derivatives of x and y
     Ix = cv.Sobel(mat, cv.CV_64F, 1, 0, ksize=3, borderType=cv.BORDER_REFLECT)
     Iy = cv.Sobel(mat, cv.CV_64F, 0, 1, ksize=3, borderType=cv.BORDER_REFLECT)
 
     # Calculate the products of derivatives
-    if gaussian_size > 1:
-        Ixx = gaussian_filter(np.square(Ix), sigma=sigma,
-                            mode='reflect', radius=gaussian_size//2)
-        Iyy = gaussian_filter(np.square(Iy), sigma=sigma,
-                            mode='reflect', radius=gaussian_size//2)
-        Ixy = gaussian_filter(np.multiply(Ix, Iy), sigma=sigma,
-                            mode='reflect', radius=gaussian_size//2)
-    else:
-        Ixx = np.square(Ix)
-        Iyy = np.square(Iy)
-        Ixy = np.multiply(Ix, Iy)
+    Ixx = gaussian_filter(np.square(Ix), sigma=sigma,
+                        mode='reflect', radius=gaussian_size//2)
+    Iyy = gaussian_filter(np.square(Iy), sigma=sigma,
+                        mode='reflect', radius=gaussian_size//2)
+    Ixy = gaussian_filter(np.multiply(Ix, Iy), sigma=sigma,
+                        mode='reflect', radius=gaussian_size//2)
         
     # orientation of the gradient, in degrees
     orientation = np.arctan2(Iy, Ix) * 180 / np.pi
-
     detM = (Ixx * Iyy) - (Ixy ** 2)
     traceM = Ixx + Iyy
     R = detM - alpha * (traceM ** 2)  # corner strength function, R
     
-    # if 0 < threshold < 1:
-    #     threshold = threshold * np.max(R)
+    # Find local maxima in the corner strength matrix
     localMaxima = (R == maximum_filter(R, size=7, mode='reflect'))
     localMaxima = localMaxima * (R > threshold)
     interest_points = np.argwhere(localMaxima)
@@ -60,69 +57,66 @@ def HarrisPointsDetector(mat, threshold=THRESHOLD, alpha=ALPHA, sigma=SIGMA, gau
 
 
 # 2. Feature description
-def createDescriptor(image, keypoints, descriptor='all'):
+def featureDescriptor(image, keypoints, descriptor='orb'):
     """
     Create a descriptor for the given image and keypoints
     """
-    if descriptor == 'orb':
+    if descriptor == 'orb': # ORB with self-designed Harris score
         orb = cv.ORB_create()
         kp, des = orb.compute(image, keypoints)
         return kp, des
-    elif descriptor == 'orb_fast':
+    elif descriptor == 'orb_fast':  # ORB with FAST score
         orb_fast = cv.ORB_create(scoreType=cv.ORB_FAST_SCORE)
         kp_fast, des_fast = orb_fast.detectAndCompute(image, None)
         return kp_fast, des_fast
-    elif descriptor == 'orb_harris':
+    elif descriptor == 'orb_harris':    # ORB with HARRIS score
         orb_harris_default = cv.ORB_create(scoreType=cv.ORB_HARRIS_SCORE)
         kp_harris, des_harris = orb_harris_default.detectAndCompute(
             image, None)
         return kp_harris, des_harris
-    elif descriptor == 'all':
-        orb = cv.ORB_create()
-        kp, des = orb.compute(image, keypoints)
 
-        orb_fast = cv.ORB_create(scoreType=cv.ORB_FAST_SCORE)
-        kp_fast, des_fast = orb_fast.detectAndCompute(image, None)
-
-        orb_harris_default = cv.ORB_create(scoreType=cv.ORB_HARRIS_SCORE)
-        kp_harris, des_harris = orb_harris_default.detectAndCompute(
-            image, None)
-        return {'orb': (kp, des), 'orb_fast': (kp_fast, des_fast), 'orb_harris': (kp_harris, des_harris)}
 
 
 # 3. Feature matching
 # Sum of squared difference
 def SSDFeatureMatcher(des1, des2, limit=LIMIT):
-    matches = []
+    """
+    Perform the SSD feature matching
+    Returns the best matches(a list of DMatch objects)
+    """
+    best_matches = []
     # squared Euclidean distance
     distances = cdist(des1, des2, metric='sqeuclidean')
-    for idx1, distance in enumerate(distances):
-        idx2 = np.argmin(distance)
-        matches.append(cv.DMatch(idx1, idx2, distance[idx2]))
-    matches = sorted(matches, key=lambda x: x.distance)
-    if limit >= len(matches):
-        return matches
-    return matches[:limit]
+    for queryIdx, distance in enumerate(distances):
+        trainIdx = np.argmin(distance)
+        best_matches.append(cv.DMatch(queryIdx, trainIdx, distance[trainIdx]))
+    best_matches = sorted(best_matches, key=lambda x: x.distance)
+    if limit >= len(best_matches):
+        return best_matches
+    return best_matches[:limit]
 
 # Ratio test
 def RatioFeatureMatcher(des1, des2, limit=LIMIT, ratio=RATIO):
-    matches = []
+    """
+    Perform the ratio test for feature matching
+    """
+    best_matches = []
     distances = cdist(des1, des2, metric='sqeuclidean')
-    for idx1, distance in enumerate(distances):
-        idx2 = np.argmin(distance)
-        d1 = distance[idx2]
-        distance[idx2] = np.inf
+    for queryIdx, distance in enumerate(distances):
+        trainIdx = np.argmin(distance)
+        distance1 = distance[trainIdx]
+        distance[trainIdx] = np.inf
+        # Find the second closest match to the query descriptor
+        second_idx = np.argmin(distance)
+        distance2 = distance[second_idx]
         
-        idx3 = np.argmin(distance)
-        d2 = distance[idx3]
-        
-        if d1 / d2 < ratio:
-            matches.append(cv.DMatch(idx1, idx2, d1))
-    matches = sorted(matches, key=lambda x: x.distance)
-    if limit >= len(matches):
-        return matches
+        if distance1 / distance2 < ratio:
+            best_matches.append(cv.DMatch(queryIdx, trainIdx, distance1))
+    best_matches = sorted(best_matches, key=lambda x: x.distance)
+    if limit >= len(best_matches):
+        return best_matches
     
-    return matches[:limit]
+    return best_matches[:limit]
 
 # Helper functions---------------------------------------------------------
 def displayImages(images: list, labels: list, title: str):
@@ -179,7 +173,7 @@ bernie_school = cv.imread('group/bernieShoolLunch.jpeg', cv.IMREAD_GRAYSCALE)
 # bernie_gray = cv.cvtColor(bernie, cv.COLOR_BGR2GRAY)
 # Use bernieSanders.jpg as the original image and HarrisPointsDetector and default descriptor
 bernie_keypoints = HarrisPointsDetector(bernie)
-bernie_descriptors = createDescriptor(bernie, bernie_keypoints)
+bernie_descriptors = ORBDescriptor(bernie, bernie_keypoints)
 
 
 def testHarrisDetector():
@@ -225,9 +219,9 @@ def testSingleImageFeatureMatcher(image, image_name='Dark'):
     output matcher images for each detector
     suggest use images except the original image: bernie 
     """
-    kp_orb, des_orb = createDescriptor(image, HarrisPointsDetector(image), descriptor='orb')
-    kp_orb_fast, des_orb_fast = createDescriptor(image, HarrisPointsDetector(image), descriptor='orb_fast')
-    kp_orb_harris, des_orb_harris = createDescriptor(image, HarrisPointsDetector(image), descriptor='orb_harris')
+    kp_orb, des_orb = ORBDescriptor(image, HarrisPointsDetector(image), descriptor='orb')
+    kp_orb_fast, des_orb_fast = ORBDescriptor(image, HarrisPointsDetector(image), descriptor='orb_fast')
+    kp_orb_harris, des_orb_harris = ORBDescriptor(image, HarrisPointsDetector(image), descriptor='orb_harris')
 
     matches_orb = RatioFeatureMatcher(bernie_descriptors['orb'][1], des_orb)
     matches_orb_fast = RatioFeatureMatcher(bernie_descriptors['orb_fast'][1], des_orb_fast)
@@ -250,7 +244,7 @@ def testTwoFeatureMatchers(image):
     SSDFeatureMatcher and RatioFeatureMatcher using the ORB descriptor
     suggest use darkBernie image
     """
-    kp, des = createDescriptor(image, HarrisPointsDetector(image), descriptor='orb')
+    kp, des = ORBDescriptor(image, HarrisPointsDetector(image), descriptor='orb')
     ssd_matches = SSDFeatureMatcher(bernie_descriptors['orb'][1], des)
     ratio_matches = RatioFeatureMatcher(bernie_descriptors['orb'][1], des)
     
@@ -269,12 +263,12 @@ def testThresholdMatcher(image):
     """
     Test different threshold values using the SSD feature matcher
     """
-    kp1, des1 = createDescriptor(image, HarrisPointsDetector(
+    kp1, des1 = ORBDescriptor(image, HarrisPointsDetector(
         image, threshold=1e3), descriptor='orb')
     
     print(des1.shape)
     
-    kp2, des2 = createDescriptor(image, HarrisPointsDetector(
+    kp2, des2 = ORBDescriptor(image, HarrisPointsDetector(
         image, threshold=1e7), descriptor='orb')
 
     matches1 = SSDFeatureMatcher(bernie_descriptors['orb'][1], des1)
@@ -299,7 +293,7 @@ def TestDifferentRatio(image, image_name='pixelated'):
     """
     Test the different ratio for RatioFeatureMatcher using the ORB descriptor
     """
-    kp, des = createDescriptor(image, HarrisPointsDetector(image), descriptor='orb')
+    kp, des = ORBDescriptor(image, HarrisPointsDetector(image), descriptor='orb')
     
     matches_07 = RatioFeatureMatcher(bernie_descriptors['orb'][1], des, ratio=0.7)
     matches_05 = RatioFeatureMatcher(bernie_descriptors['orb'][1], des, ratio=0.5)
@@ -354,9 +348,9 @@ def getMatchImage(image, descriptor='orb'):
     """
     Get the match image for the given image and descriptor using the RatioFeatureMatcher
     """
-    kp, des = createDescriptor(image, HarrisPointsDetector(image), descriptor='orb_fast')
-    matches = RatioFeatureMatcher(bernie_descriptors[descriptor][1], des, limit=20)
-    match_image = cv.drawMatches(bernie, bernie_descriptors[descriptor][0], image, kp, matches, None, flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+    kp, des = ORBDescriptor(image, HarrisPointsDetector(image), descriptor='orb_fast')
+    best_matches = RatioFeatureMatcher(bernie_descriptors[descriptor][1], des, limit=20)
+    match_image = cv.drawMatches(bernie, bernie_descriptors[descriptor][0], image, kp, best_matches, None, flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
     return match_image
 
 def testBernieMatches(images, labels):
@@ -383,8 +377,9 @@ if __name__ == "__main__":
     # testBernieMatches([bernie_dark, bernie_bright], ['Dark', 'Bright'])
     # -------- testBernieMatches([bernie_180, bernie_pixel, bernie_noisy, bernie_blur], ['180', 'Pixel', 'Noisy', 'Blur'])
 
-    # threshold_values = [1e7, 5e7, 1e8, 5e8, 1e9]  # Example threshold values to try [-1e3, 0, 1e3, 1e6, 1e7, 1e8]
-    testThresholdsDetector([1e2 ,5e2, 1e3, 5e3, 1e4])
+    # threshold_values = [1e7, 5e7, 1e8, 5e8, 1e9]  
+    # Example threshold values to try [-1e3, 0, 1e3, 1e6, 1e7, 1e8]
+    # testThresholdsDetector([1e2 ,5e2, 1e3, 5e3, 1e4, 5e4])
 
     print("End of the program")
 
