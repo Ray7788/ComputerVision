@@ -56,7 +56,6 @@ def getDisparityMap(imL, imR, numDisparities, blockSize):
 
     return disparity # floating point image
 # ================================================
-#
 # 1.1 Focal Length Calculation
 def calcRealFocalLength(sensorSize, imgSize, focalLength):
     """
@@ -80,7 +79,7 @@ def getEdgeMap(img, threshold1, threshold2):
     # img = cv2.GaussianBlur(img, (5, 5), 0)
     imgCanny = cv2.Canny(img, threshold1, threshold2)
     return imgCanny
-
+# ================================================
 #  1.3 Views of the Scene
 def calcDepthMap(disparityMap, f=FOCAL_LENGTH_PIXELS, DOFFS=DOFFS, Z=BASELINE):
     """
@@ -122,8 +121,7 @@ def plot(depth):
     # y = rows
     print('finished')
     
-    # Plt depths
-
+    # Plt depths 3D
     ax = plt.axes(projection ='3d')
     ax.view_init(elev=30, azim=45)
     # Plot the 3D scatter plot
@@ -149,6 +147,18 @@ def plot(depth):
     plt.ylabel('z')
     plt.savefig('side_view.png', bbox_inches='tight')
     plt.show()
+
+    # 2D plot with x-axis on top and y-axis on the right
+    fig, ax = plt.subplots()
+    ax.scatter(x, y, s=0.1)
+    ax.xaxis.tick_top() # move x-axis to the top
+    ax.yaxis.tick_right() # move y-axis to the right
+    ax.xaxis.set_label_position('top') # move x-axis label to the top
+    ax.yaxis.set_label_position('right') # move y-axis label to the right
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    plt.savefig('xy_view.png', bbox_inches='tight')
+    plt.show()
 # ================================================
 #
 def concatImgs(imgs: list, labels: list):
@@ -163,15 +173,15 @@ def concatImgs(imgs: list, labels: list):
 def drawDisparityImage(numDisparity = None, blockSize = None, threshold1=None, threshold2=None):
     
     if numDisparity is None:
-        numDisparity = cv2.getTrackbarPos('numDisparity', WINDOW_DIS)
+        numDisparity = cv2.getTrackbarPos('Disparity:', WINDOW_DIS)
     if blockSize is None:
-        blockSize = cv2.getTrackbarPos('blockSize', WINDOW_DIS)
+        blockSize = cv2.getTrackbarPos('Block Size:', WINDOW_DIS)
         
     if USE_EDGE_DETECTION:
         if threshold1 is None:
-            threshold1 = cv2.getTrackbarPos('threshold1', WINDOW_EDGE)
+            threshold1 = cv2.getTrackbarPos('Threshold 1', WINDOW_EDGE)
         if threshold2 is None:
-            threshold2 = cv2.getTrackbarPos('threshold2', WINDOW_EDGE)
+            threshold2 = cv2.getTrackbarPos('Threshold 2', WINDOW_EDGE)
             
         edgeL = getEdgeMap(imgL, threshold1, threshold2)
         edgeR = getEdgeMap(imgR, threshold1, threshold2)
@@ -210,8 +220,8 @@ def compute_and_display_disparity(imgL, imgR, USE_EDGE_DETECTION, THR1, THR2, NU
         edgeL = getEdgeMap(imgL, THR1, THR2)
         edgeR = getEdgeMap(imgR, THR1, THR2)
         
-        cv2.createTrackbar('threshold 1', WINDOW_EDGE, THR1, 255, drawEdgeDetected_threshold1)
-        cv2.createTrackbar('threshold 2', WINDOW_EDGE, THR2, 255, drawEdgeDetected_threshold2)
+        cv2.createTrackbar('Threshold 1', WINDOW_EDGE, THR1, 255, drawEdgeDetected_threshold1)
+        cv2.createTrackbar('Threshold 2', WINDOW_EDGE, THR2, 255, drawEdgeDetected_threshold2)
 
         # Get disparity map
         disparity = getDisparityMap(edgeL, edgeR, NUM_DISPARITY*16, 5+BLOCK_SIZE*2)
@@ -226,8 +236,8 @@ def compute_and_display_disparity(imgL, imgR, USE_EDGE_DETECTION, THR1, THR2, NU
     # Show result
     cv2.imshow(WINDOW_DIS, disparityImg)
 
-    cv2.createTrackbar('num of disparity', WINDOW_DIS, NUM_DISPARITY, 16, drawDisparity_numDisparity)
-    cv2.createTrackbar('blockSize', WINDOW_DIS, BLOCK_SIZE, 16, drawDisparity_blockSize)
+    cv2.createTrackbar('Disparity:', WINDOW_DIS, NUM_DISPARITY, 16, drawDisparity_numDisparity)
+    cv2.createTrackbar('Block Size:', WINDOW_DIS, BLOCK_SIZE, 16, drawDisparity_blockSize)
 
     cv2.imwrite('disparity.png', disparityImg*255)
 
@@ -260,46 +270,39 @@ if __name__ == '__main__':
 
     print("Please wait while the disparity map is calculated...")
     # # 1.2  Disparity Map
-    # # Create a window to display the image in
-    # cv2.namedWindow('Disparity', cv2.WINDOW_NORMAL)
+    # Create a window to display the image in
+    cv2.namedWindow('Disparity', cv2.WINDOW_NORMAL)
 
-    # if USE_EDGE_DETECTION:
-    #     cv2.imshow(WINDOW_EDGE, getEdgeMap(imgL, THR1, THR2))
+    if USE_EDGE_DETECTION:
+        cv2.imshow(WINDOW_EDGE, getEdgeMap(imgL, THR1, THR2))
         
-    #     edgeL = getEdgeMap(imgL, THR1, THR2)
-    #     edgeR = getEdgeMap(imgR, THR1, THR2)
+        edgeL = getEdgeMap(imgL, THR1, THR2)
+        edgeR = getEdgeMap(imgR, THR1, THR2)
         
-    #     cv2.createTrackbar('threshold 1', WINDOW_EDGE, THR1, 255, drawEdgeDetected_threshold1)
-    #     cv2.createTrackbar('threshold 2', WINDOW_EDGE, THR2, 255, drawEdgeDetected_threshold2)
+        cv2.createTrackbar('Threshold 1', WINDOW_EDGE, THR1, 255, drawEdgeDetected_threshold1)
+        cv2.createTrackbar('Threshold 2', WINDOW_EDGE, THR2, 255, drawEdgeDetected_threshold2)
 
-    #     # Get disparity map
-    #     disparity = getDisparityMap(edgeL, edgeR, NUM_DISPARITY*16, 5+BLOCK_SIZE*2)
-    # else:
-    #     # Get disparity map
-    #     disparity = getDisparityMap(imgL, imgR, NUM_DISPARITY*16, 5+BLOCK_SIZE*2)
+        # Get disparity map
+        disparity = getDisparityMap(edgeL, edgeR, NUM_DISPARITY*16, 5+BLOCK_SIZE*2)
+    else:
+        # Get disparity map
+        disparity = getDisparityMap(imgL, imgR, NUM_DISPARITY*16, 5+BLOCK_SIZE*2)
 
-    # # Normalise for display
-    # disparityImg = np.interp(disparity, (disparity.min(), disparity.max()), (0.0, 1.0))
+    # Normalise for display
+    disparityImg = np.interp(disparity, (disparity.min(), disparity.max()), (0.0, 1.0))
 
-    # cv2.imwrite('disparity_no_canny.png', disparityImg*255)
-    # # Show result
-    # cv2.imshow(WINDOW_DIS, disparityImg)
+    cv2.imwrite('disparity_no_canny.png', disparityImg*255)
+    # Show result
+    cv2.imshow(WINDOW_DIS, disparityImg)
 
-    # cv2.createTrackbar('num of disparity', WINDOW_DIS, NUM_DISPARITY, 16, drawDisparity_numDisparity)
-    # cv2.createTrackbar('blockSize', WINDOW_DIS, BLOCK_SIZE, 16, drawDisparity_blockSize)
+    cv2.createTrackbar('Disparity:', WINDOW_DIS, NUM_DISPARITY, 16, drawDisparity_numDisparity)
+    cv2.createTrackbar('Block Size:', WINDOW_DIS, BLOCK_SIZE, 16, drawDisparity_blockSize)
 
-    # cv2.imwrite('disparity.png', disparityImg*255)
+    cv2.imwrite('disparity.png', disparityImg*255)
 
 
 
-    # THR1 = 100
-    # THR2 = 200
-    # NUM_DISPARITY = 16
-    # BLOCK_SIZE = 5
-    # WINDOW_EDGE = 'Edge Detection'
-    # WINDOW_DIS = 'Disparity'
-
-    compute_and_display_disparity(imgL, imgR, USE_EDGE_DETECTION, THR1, THR2, NUM_DISPARITY, BLOCK_SIZE, WINDOW_EDGE, WINDOW_DIS)
+    # compute_and_display_disparity(imgL, imgR, USE_EDGE_DETECTION, THR1, THR2, NUM_DISPARITY, BLOCK_SIZE, WINDOW_EDGE, WINDOW_DIS)
 
     # Compare different values of numDisparities and blockSize ------------------------------------ #
     # images = []
@@ -354,10 +357,10 @@ if __name__ == '__main__':
     # cv2.imshow('comparison', output)
     
     # Calculate the depth map of the scene -------------------------------------------------------- #
-    # depth = calcDepthMap(disparity)
+    depth = calcDepthMap(disparity)
 
-    # # Show 3D plot of the scene
-    # plot(depth)
+    # Show 3D plot of the scene
+    plot(depth)
 
     # Wait for user to press space or escape
     while True:
