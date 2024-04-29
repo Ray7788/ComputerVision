@@ -22,8 +22,8 @@ BASELINE = 174.019 # in mm
 # Set threshold values for
 THR1 = 20
 THR2 = 125
-NUM_DISPARITY = 4 # *16 -----4
-BLOCK_SIZE = 1 # *2 + 5 -----0
+NUM_DISPARITY = 64 # *16 -----4
+BLOCK_SIZE = 7 # *2 + 5 -----0
 
 USE_EDGE_DETECTION = True
 
@@ -52,7 +52,7 @@ def getDisparityMap(imL, imR, numDisparities, blockSize):
 
     disparity = stereo.compute(imL, imR)
     disparity = disparity - disparity.min() + 1 # Add 1 so we don't get a zero depth, later
-    disparity = disparity.astype(np.float32) / 16.0 # Map is fixed point int with 4 fractional bits
+    disparity = disparity.astype(np.float32) # Map is fixed point int with 4 fractional bits
 
     return disparity # floating point image
 # ================================================
@@ -188,9 +188,9 @@ def drawDisparityImage(numDisparity = None, blockSize = None, threshold1=None, t
         
         cv2.imshow(WINDOW_EDGE, edgeL)
     
-        disparity = getDisparityMap(edgeL, edgeR, numDisparity*16, blockSize*2+5)
+        disparity = getDisparityMap(edgeL, edgeR, numDisparity, blockSize*2+5)
     else:
-        disparity = getDisparityMap(imgL, imgR, numDisparity*16, blockSize*2+5)
+        disparity = getDisparityMap(imgL, imgR, numDisparity, blockSize*2+5)
 
     # Normalise for display
     disparityImg = np.interp(disparity, (disparity.min(), disparity.max()), (0.0, 1.0))
@@ -224,10 +224,10 @@ def compute_and_display_disparity(imgL, imgR, USE_EDGE_DETECTION, THR1, THR2, NU
         cv2.createTrackbar('Threshold 2', WINDOW_EDGE, THR2, 255, drawEdgeDetected_threshold2)
 
         # Get disparity map
-        disparity = getDisparityMap(edgeL, edgeR, NUM_DISPARITY*16, 5+BLOCK_SIZE*2)
+        disparity = getDisparityMap(edgeL, edgeR, NUM_DISPARITY, BLOCK_SIZE)
     else:
         # Get disparity map
-        disparity = getDisparityMap(imgL, imgR, NUM_DISPARITY*16, 5+BLOCK_SIZE*2)
+        disparity = getDisparityMap(imgL, imgR, NUM_DISPARITY, BLOCK_SIZE)
 
     # Normalise for display
     disparityImg = np.interp(disparity, (disparity.min(), disparity.max()), (0.0, 1.0))
@@ -236,8 +236,8 @@ def compute_and_display_disparity(imgL, imgR, USE_EDGE_DETECTION, THR1, THR2, NU
     # Show result
     cv2.imshow(WINDOW_DIS, disparityImg)
 
-    cv2.createTrackbar('Disparity:', WINDOW_DIS, NUM_DISPARITY, 16, drawDisparity_numDisparity)
-    cv2.createTrackbar('Block Size:', WINDOW_DIS, BLOCK_SIZE, 16, drawDisparity_blockSize)
+    cv2.createTrackbar('Disparity:', WINDOW_DIS, NUM_DISPARITY, 64, drawDisparity_numDisparity)
+    cv2.createTrackbar('Block Size:', WINDOW_DIS, BLOCK_SIZE, 64, drawDisparity_blockSize)
 
     cv2.imwrite('disparity.png', disparityImg*255)
 
@@ -283,10 +283,10 @@ if __name__ == '__main__':
         cv2.createTrackbar('Threshold 2', WINDOW_EDGE, THR2, 255, drawEdgeDetected_threshold2)
 
         # Get disparity map
-        disparity = getDisparityMap(edgeL, edgeR, NUM_DISPARITY*16, 5+BLOCK_SIZE*2)
+        disparity = getDisparityMap(edgeL, edgeR, NUM_DISPARITY, BLOCK_SIZE)
     else:
         # Get disparity map
-        disparity = getDisparityMap(imgL, imgR, NUM_DISPARITY*16, 5+BLOCK_SIZE*2)
+        disparity = getDisparityMap(imgL, imgR, NUM_DISPARITY, BLOCK_SIZE)
 
     # Normalise for display
     disparityImg = np.interp(disparity, (disparity.min(), disparity.max()), (0.0, 1.0))
@@ -295,8 +295,8 @@ if __name__ == '__main__':
     # Show result
     cv2.imshow(WINDOW_DIS, disparityImg)
 
-    cv2.createTrackbar('Disparity:', WINDOW_DIS, NUM_DISPARITY, 16, drawDisparity_numDisparity)
-    cv2.createTrackbar('Block Size:', WINDOW_DIS, BLOCK_SIZE, 16, drawDisparity_blockSize)
+    cv2.createTrackbar('Disparity:', WINDOW_DIS, NUM_DISPARITY, 64, drawDisparity_numDisparity)
+    cv2.createTrackbar('Block Size:', WINDOW_DIS, BLOCK_SIZE, 64, drawDisparity_blockSize)
 
     cv2.imwrite('disparity.png', disparityImg*255)
 
@@ -370,4 +370,9 @@ if __name__ == '__main__':
 
     cv2.destroyAllWindows()
     print('Done.')
+
+    ff = calcRealFocalLength(SENSOR_LENGTH_MM, PHOTO_LENGTH_PIXELS, FOCAL_LENGTH_PIXELS)
+    print(ff)
+    # 43.55
+
     sys.exit()
