@@ -22,8 +22,8 @@ BASELINE = 174.019 # in mm
 # Set threshold values for
 THR1 = 20
 THR2 = 125
-NUM_DISPARITY = 64 # *16 -----4
-BLOCK_SIZE = 7 # *2 + 5 -----0
+NUM_DISPARITY = 4 # *16 -----4
+BLOCK_SIZE = 1 # *2 + 5 -----0
 
 USE_EDGE_DETECTION = True
 
@@ -52,21 +52,21 @@ def getDisparityMap(imL, imR, numDisparities, blockSize):
 
     disparity = stereo.compute(imL, imR)
     disparity = disparity - disparity.min() + 1 # Add 1 so we don't get a zero depth, later
-    disparity = disparity.astype(np.float32) # Map is fixed point int with 4 fractional bits
+    disparity = disparity.astype(np.float32) / 16.0 # Map is fixed point int with 4 fractional bits
 
     return disparity # floating point image
 # ================================================
 # 1.1 Focal Length Calculation
-def calcRealFocalLength(sensorSize, imgSize, focalLength):
+def calcRealFocalLength(sensor_size, image_size, focal_length):
     """
     Calculate the real focal length of the camera
 
-    The formula is: f = (sensorSize / resolution) * focalLength
-    sensorSize: the size of the camera sensor in mm
-    imgSize: the size of the image in pixels
-    focalLength: the focal length of the camera in pixels
+    The formula is: f = (sensor_size / resolution) * focal_length
+    sensor_size: the size of the camera sensor in mm
+    image_size: the size of the image in pixels
+    focal_length: the focal length of the camera in pixels
     """
-    return (sensorSize / imgSize) * focalLength
+    return (sensor_size / image_size) * focal_length
 
 def getEdgeMap(img, threshold1, threshold2):
     """
@@ -76,7 +76,6 @@ def getEdgeMap(img, threshold1, threshold2):
     threshold1: the first threshold for the hysteresis procedure
     threshold2: the second threshold for the hysteresis procedure
     """
-    # img = cv2.GaussianBlur(img, (5, 5), 0)
     imgCanny = cv2.Canny(img, threshold1, threshold2)
     return imgCanny
 # ================================================
@@ -94,33 +93,35 @@ def calcDepthMap(disparityMap, f=FOCAL_LENGTH_PIXELS, DOFFS=DOFFS, Z=BASELINE):
 
     The formula is: Z = baseLine * (f / (d + DOFFS))
     """
-    # f = calcRealFocalLength(SENSOR_LENGTH_MM, PHOTO_LENGTH_PIXELS, FOCAL_LENGTH_PIXELS)
 
     Z = BASELINE * (f / (disparityMap + DOFFS))
     return Z
 
 # ================================================
 #
-def plot(depth):
+def plot(disparity):
     """
     Plot the 3D scene of the depth map
-
-    depth: the depth map of the scene
     """
-    low_threshold = 0 #40
-    high_threshold = 10800 #60
     
-    f = calcRealFocalLength(SENSOR_LENGTH_MM, PHOTO_LENGTH_PIXELS, FOCAL_LENGTH_PIXELS)
-    rows, cols = np.where((depth > low_threshold) & (depth < high_threshold))
-    z = depth[(depth > low_threshold) & (depth < high_threshold)]
-    # x = (cols / len(cols) * PHOTO_HEIGHT_PIXELS) * (SENSOR_LENGTH_MM / PHOTO_HEIGHT_PIXELS) * (z / f)
-    # y = (SENSOR_HEIGHT_MM / rows) * (z / f)
-    x = (cols/IMAGE_LENGTH_PIXELS) * SENSOR_LENGTH_MM * (z / f)
-    y = (rows/IMAGE_HEIGHT_PIXELS) * SENSOR_HEIGHT_MM * (z / f)
-    # x = cols
-    # y = rows
-    print('finished')
-    
+    height, width = disparity.shape
+    cx, cy = 0, 0
+    x = []
+    y = []
+    z = []
+    for r in range(height):
+        for c in range(width):
+                dis = disparity[r, c]
+                if dis <= 1:
+                    continue
+                
+                Z = calcDepthMap(dis, f=FOCAL_LENGTH_PIXELS, DOFFS=DOFFS, Z=BASELINE)
+                X = (c - cx) * Z / FOCAL_LENGTH_PIXELS
+                Y = (r - cy) * Z / FOCAL_LENGTH_PIXELS
+                x.append(X)
+                y.append(Y)
+                z.append(Z)
+
     # Plt depths 3D
     ax = plt.axes(projection ='3d')
     ax.view_init(elev=30, azim=45)
@@ -129,36 +130,39 @@ def plot(depth):
     ax.set_xlabel('x')
     ax.set_ylabel('z')
     ax.set_zlabel('y')
-    plt.savefig('myplot.png', bbox_inches='tight') # Can also specify an image, e.g. myplot.png
+    plt.savefig('3D.png', bbox_inches='tight') # Can also specify an image, e.g. myplot.png
     plt.show()
 
-    # 2D plot viewed from above (X, Z coordinates)
-    plt.figure()
-    plt.scatter(x, z, s=0.1)
-    plt.xlabel('x')
-    plt.ylabel('z')
-    plt.savefig('top_view.png', bbox_inches='tight')
-    plt.show()
-
-    # 2D plot viewed from the side (Y, Z)
-    plt.figure()
-    plt.scatter(y, z, s=0.1)
-    plt.xlabel('y')
-    plt.ylabel('z')
-    plt.savefig('side_view.png', bbox_inches='tight')
-    plt.show()
-
-    # 2D plot with x-axis on top and y-axis on the right
-    fig, ax = plt.subplots()
-    ax.scatter(x, y, s=0.1)
-    ax.xaxis.tick_top() # move x-axis to the top
-    ax.yaxis.tick_right() # move y-axis to the right
-    ax.xaxis.set_label_position('top') # move x-axis label to the top
-    ax.yaxis.set_label_position('right') # move y-axis label to the right
+    # elev=9, azim=-90 Top view
+    ax = plt.axes(projection ='3d')
+    ax.view_init(elev=90, azim=-90)
+    ax.scatter(x, z, y, 'green', s=0.1)
     ax.set_xlabel('x')
-    ax.set_ylabel('y')
-    plt.savefig('xy_view.png', bbox_inches='tight')
+    ax.set_ylabel('z')
+    ax.set_zlabel('y')
+    plt.savefig('myplot_90_-90.png', bbox_inches='tight')
     plt.show()
+
+    # elev=20, azim=-120
+    ax = plt.axes(projection ='3d')
+    ax.view_init(elev=20, azim=-120)
+    ax.scatter(x, z, y, 'green', s=0.1)
+    ax.set_xlabel('x')
+    ax.set_ylabel('z')
+    ax.set_zlabel('y')
+    plt.savefig('myplot_20_-120.png', bbox_inches='tight')
+    plt.show()
+
+    # elev=180, azim=0 side view
+    ax = plt.axes(projection ='3d')
+    ax.view_init(elev=180, azim=0)
+    ax.scatter(x, z, y, 'green', s=0.1)
+    ax.set_xlabel('x')
+    ax.set_ylabel('z')
+    ax.set_zlabel('y')
+    plt.savefig('myplot_180_0.png', bbox_inches='tight')
+    plt.show()
+
 # ================================================
 #
 def concatImgs(imgs: list, labels: list):
@@ -188,9 +192,9 @@ def drawDisparityImage(numDisparity = None, blockSize = None, threshold1=None, t
         
         cv2.imshow(WINDOW_EDGE, edgeL)
     
-        disparity = getDisparityMap(edgeL, edgeR, numDisparity, blockSize*2+5)
+        disparity = getDisparityMap(edgeL, edgeR, numDisparity*16, blockSize*2+5)
     else:
-        disparity = getDisparityMap(imgL, imgR, numDisparity, blockSize*2+5)
+        disparity = getDisparityMap(imgL, imgR, numDisparity*16, blockSize*2+5)
 
     # Normalise for display
     disparityImg = np.interp(disparity, (disparity.min(), disparity.max()), (0.0, 1.0))
@@ -224,10 +228,10 @@ def compute_and_display_disparity(imgL, imgR, USE_EDGE_DETECTION, THR1, THR2, NU
         cv2.createTrackbar('Threshold 2', WINDOW_EDGE, THR2, 255, drawEdgeDetected_threshold2)
 
         # Get disparity map
-        disparity = getDisparityMap(edgeL, edgeR, NUM_DISPARITY, BLOCK_SIZE)
+        disparity = getDisparityMap(edgeL, edgeR, NUM_DISPARITY*16, 5+BLOCK_SIZE*2)
     else:
         # Get disparity map
-        disparity = getDisparityMap(imgL, imgR, NUM_DISPARITY, BLOCK_SIZE)
+        disparity = getDisparityMap(imgL, imgR, NUM_DISPARITY*16, 5+BLOCK_SIZE*2)
 
     # Normalise for display
     disparityImg = np.interp(disparity, (disparity.min(), disparity.max()), (0.0, 1.0))
@@ -236,8 +240,8 @@ def compute_and_display_disparity(imgL, imgR, USE_EDGE_DETECTION, THR1, THR2, NU
     # Show result
     cv2.imshow(WINDOW_DIS, disparityImg)
 
-    cv2.createTrackbar('Disparity:', WINDOW_DIS, NUM_DISPARITY, 64, drawDisparity_numDisparity)
-    cv2.createTrackbar('Block Size:', WINDOW_DIS, BLOCK_SIZE, 64, drawDisparity_blockSize)
+    cv2.createTrackbar('Disparity:', WINDOW_DIS, NUM_DISPARITY, 16, drawDisparity_numDisparity)
+    cv2.createTrackbar('Block Size:', WINDOW_DIS, BLOCK_SIZE, 16, drawDisparity_blockSize)
 
     cv2.imwrite('disparity.png', disparityImg*255)
 
@@ -283,10 +287,10 @@ if __name__ == '__main__':
         cv2.createTrackbar('Threshold 2', WINDOW_EDGE, THR2, 255, drawEdgeDetected_threshold2)
 
         # Get disparity map
-        disparity = getDisparityMap(edgeL, edgeR, NUM_DISPARITY, BLOCK_SIZE)
+        disparity = getDisparityMap(edgeL, edgeR, NUM_DISPARITY*16, 5+BLOCK_SIZE*2)
     else:
         # Get disparity map
-        disparity = getDisparityMap(imgL, imgR, NUM_DISPARITY, BLOCK_SIZE)
+        disparity = getDisparityMap(imgL, imgR, NUM_DISPARITY*16, 5+BLOCK_SIZE*2)
 
     # Normalise for display
     disparityImg = np.interp(disparity, (disparity.min(), disparity.max()), (0.0, 1.0))
@@ -295,8 +299,8 @@ if __name__ == '__main__':
     # Show result
     cv2.imshow(WINDOW_DIS, disparityImg)
 
-    cv2.createTrackbar('Disparity:', WINDOW_DIS, NUM_DISPARITY, 64, drawDisparity_numDisparity)
-    cv2.createTrackbar('Block Size:', WINDOW_DIS, BLOCK_SIZE, 64, drawDisparity_blockSize)
+    cv2.createTrackbar('Disparity:', WINDOW_DIS, NUM_DISPARITY, 16, drawDisparity_numDisparity)
+    cv2.createTrackbar('Block Size:', WINDOW_DIS, BLOCK_SIZE, 16, drawDisparity_blockSize)
 
     cv2.imwrite('disparity.png', disparityImg*255)
 
@@ -357,10 +361,10 @@ if __name__ == '__main__':
     # cv2.imshow('comparison', output)
     
     # Calculate the depth map of the scene -------------------------------------------------------- #
-    depth = calcDepthMap(disparity)
+    # depth = calcDepthMap(disparity)
 
     # Show 3D plot of the scene
-    plot(depth)
+    plot(disparity)
 
     # Wait for user to press space or escape
     while True:
@@ -370,9 +374,4 @@ if __name__ == '__main__':
 
     cv2.destroyAllWindows()
     print('Done.')
-
-    ff = calcRealFocalLength(SENSOR_LENGTH_MM, PHOTO_LENGTH_PIXELS, FOCAL_LENGTH_PIXELS)
-    print(ff)
-    # 43.55
-
     sys.exit()
